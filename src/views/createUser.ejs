@@ -1,0 +1,61 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Users</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <div class="topnav">
+        <a href="/admin/user">Home</a>
+        <a class="active" href="/admin/user/create">Create Users</a>
+        <a href="/admin/product/">Home Products</a>
+        <a href="/admin/product/create">Create Product</a>
+        <a href="/admin/loginPage">Login</a>
+    </div>
+    <div class="form-add-new">
+        <form action="/admin/user/create-user" method="post">
+            <fieldset>
+                <legend>Add new Users:</legend>
+                <div class="input-group">
+                    <label>
+                        Name:
+                    </label>
+                    <input type="text" name="name" />
+                </div>
+                <div class="input-group">
+                    <label>
+                        Email:
+                    </label>
+                    <input type="text"  name="email" />
+                </div>
+                <div class="input-group">
+                    <label>
+                        password:
+                    </label>
+                    <input type="text" name="password" />
+                </div>
+                <div class="input-group">
+                    <label>
+                        Confirm password:
+                    </label>
+                    <input type="text" name="confirmPassword" />
+                </div>
+                <div class="input-group">
+                    <label>
+                        Phone:
+                    </label>
+                    <input type="text" name="phone" />
+                </div>
+                <div>
+                    <button onclick="alert('Create user successfully')"> Save </button>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+    
+</body>
+
+</html>

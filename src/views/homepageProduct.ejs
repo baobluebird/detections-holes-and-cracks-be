@@ -1,0 +1,112 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Page Product</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<style>
+    .title {
+        font-size: 25px;
+        font-weight: 600;
+        padding-bottom: 10px;
+    }
+
+    .table-container {
+        padding: 15px 20px;
+    }
+
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    th,
+    td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    tr:hover {
+        background-color: rgb(180, 178, 178);
+    }
+</style>
+
+<body>
+    <div class="topnav">
+        <a href="/admin/user">Home User</a>
+        <a href="/admin/user/create">Create Users</a>
+        <a class="active" href="/admin/product/create">Home Products</a>
+        <a href="/admin/product/create">Create Product</a>
+        <a href="/admin/loginPage">Login</a>
+        <!-- <a href="/admin/logout">Logout</a>  -->
+    </div>
+    <div class="table-container">
+        <div class="title">List Users</div>
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>name</th>
+                <th>description</th>
+                <th>new_price</th>
+                <th>old_price</th>
+                <th>type</th>
+                <th>countInStock</th>
+                <th>rating</th>
+                <th>discount</th>
+                <th>image</th>
+                <th>selled</th>
+                <th>Action</th>
+            </tr>
+
+            <!-- loop for each  -->
+            <% listProducts.forEach(function(product){ %>
+                <tr>
+                    <td>
+                        <%= product._id %>
+                    </td>
+                    <td>
+                        <%= product.name %>
+                    </td>
+                    <td>
+                        <%= product.description %>
+                    </td>
+                    <td>
+                        <%= product.new_price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }) %>
+                    </td>
+                    <td>
+                        <%= product.old_price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }) %>
+                    </td>
+                    <td>
+                        <%= product.type %>
+                    </td>
+                    <td>
+                        <%= product.countInStock %>
+                    </td>
+                    <td>
+                        <%= product.rating %>
+                    </td>
+                    <td>
+                        <%= product.image %>
+                    </td>
+                    <td>
+                        <%= product.selled %>
+                    </td>
+                    <td>
+                        <form action="/admin/product/update/<%= product._id %>" method="get">
+                            <button type="submit">Edit</button>
+                        </form>
+                        <form action="/admin/product/delete-product/<%= product._id %>" method="post">
+                            <button type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            <% }) %>
+
+        </table>
+    </div>
+</body>
+
+</html>
