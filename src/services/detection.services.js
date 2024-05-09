@@ -98,7 +98,7 @@ const getLatLongDetection = () => {
 const getListHoles = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      const holes = await Hole.find();
+      const holes = await Hole.find().select('-image');
       resolve({
         data: holes,
         status: "OK",
@@ -113,7 +113,7 @@ const getListHoles = () => {
 const getListCracks = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      const cracks = await Crack.find();
+      const cracks = await Crack.find().select('-image');
       resolve({
         data: cracks,
         status: "OK",
