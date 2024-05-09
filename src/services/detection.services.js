@@ -1,5 +1,16 @@
 const Hole = require("../models/hole.model");
 const Crack = require("../models/crack.model");
+const cloudinary = require("cloudinary");
+const dotenv = require("dotenv");
+dotenv.config();
+const path = require("path");
+const fs = require("fs");
+
+cloudinary.config({
+  cloud_name: process.env.API_NAME_CLOUDINARY,
+  api_key: process.env.API_KEY_CLOUDDINARY,
+  api_secret: process.env.API_SECRET_CLOUDDINARY,
+});
 
 const createDetection = async (
   typeDetection,
@@ -11,18 +22,33 @@ const createDetection = async (
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
-      console.log("image", image.data);
-      console.log("address", address);
-      console.log("typeDetection", typeDetection);
-      if (typeDetection == "Ổ gà") {
+      if (typeDetection === "Ổ gà") {
         const hole = await Hole.create({
           name: "Ổ gà",
           user: userId,
           location: location,
           address: address,
-          image: image,
           description: description,
         });
+
+        const uploadsDir = path.join(__dirname, '../uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir);
+        }
+
+        const imagePath = path.join(uploadsDir, `${hole._id}.jpg`);
+        fs.writeFileSync(imagePath, image.data);
+
+        const savedImage = await cloudinary.uploader.upload(imagePath, {
+          public_id: `hole_${hole._id}`,
+          resource_type: "image"
+        });
+
+        fs.unlinkSync(imagePath);
+
+        hole.image = savedImage.secure_url;
+        await hole.save();
+
         resolve({
           image: image.data,
           data: hole,
@@ -35,9 +61,26 @@ const createDetection = async (
           user: userId,
           location: location,
           address: address,
-          image: image,
           description: description,
         });
+        const uploadsDir = path.join(__dirname, '../uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir);
+        }
+
+        const imagePath = path.join(uploadsDir, `${crack._id}.jpg`);
+        fs.writeFileSync(imagePath, image.data);
+
+        const savedImage = await cloudinary.uploader.upload(imagePath, {
+          public_id: `crack_${crack._id}`,
+          resource_type: "image"
+        });
+
+        fs.unlinkSync(imagePath);
+
+        crack.image = savedImage.secure_url;
+        await crack.save();
+
         resolve({
           image: image.data,
           data: crack,
@@ -54,34 +97,38 @@ const createDetection = async (
 const getLatLongDetection = () => {
   return new Promise(async (resolve, reject) => {
     try {
-        //find hole with description = 'Small', description = 'Large'
-        //find crack with description = 'Small', description = 'Large'   
-        const latLongSmallHole = await Hole.find({ description: { $in: ['Small'] } }).select('location');
-        const latLongLargeHole = await Hole.find({ description: { $in: [ 'Large'] } }).select('location');
-        const latLongSmallCrack = await Crack.find({ description: { $in: ['Small'] } }).select('location');
-        const latLongLargeCrack = await Crack.find({ description: { $in: ['Large'] } }).select('location');
-      // Chuyển đổi đối tượng thành mảng các cặp tọa độ [latitude, longitude]
+      const latLongSmallHole = await Hole.find({
+        description: { $in: ["Small"] },
+      }).select("location");
+      const latLongLargeHole = await Hole.find({
+        description: { $in: ["Large"] },
+      }).select("location");
+      const latLongSmallCrack = await Crack.find({
+        description: { $in: ["Small"] },
+      }).select("location");
+      const latLongLargeCrack = await Crack.find({
+        description: { $in: ["Large"] },
+      }).select("location");
       const formatLatLng = (latLngObjects) => {
-        return latLngObjects.map(obj => {
-          const matches = obj.location.match(/LatLng\(latitude:(.*), longitude:(.*)\)/);
-          if (matches && matches.length === 3) {
-            return [parseFloat(matches[1]), parseFloat(matches[2])];
-          } else {
-            return null; // Nếu không phù hợp, trả về null hoặc giá trị khác để xử lý sau này
-          }
-        }).filter(Boolean); // Loại bỏ các giá trị null (nếu có)
+        return latLngObjects
+          .map((obj) => {
+            const matches = obj.location.match(
+              /LatLng\(latitude:(.*), longitude:(.*)\)/
+            );
+            if (matches && matches.length === 3) {
+              return [parseFloat(matches[1]), parseFloat(matches[2])];
+            } else {
+              return null; 
+            }
+          })
+          .filter(Boolean);
       };
       const formattedLatLongSmallHole = formatLatLng(latLongSmallHole);
       const formattedLatLongLargeHole = formatLatLng(latLongLargeHole);
       const formattedLatLongSmallCrack = formatLatLng(latLongSmallCrack);
       const formattedLatLongLargeCrack = formatLatLng(latLongLargeCrack);
 
-      console.log('formattedLatLongSmallHole', formattedLatLongSmallHole);     
-      console.log('formattedLatLongLargeHole', formattedLatLongLargeHole);  
-      console.log('formattedLatLongSmallCrack', formattedLatLongSmallCrack);  
-      console.log('formattedLatLongLargeCrack', formattedLatLongLargeCrack);  
-
-       resolve({
+      resolve({
         latLongSmallHole: formattedLatLongSmallHole,
         latLongLargeHole: formattedLatLongLargeHole,
         latLongSmallCrack: formattedLatLongSmallCrack,
@@ -98,7 +145,7 @@ const getLatLongDetection = () => {
 const getListHoles = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      const holes = await Hole.find().select('-image');
+      const holes = await Hole.find().select("-image");
       resolve({
         data: holes,
         status: "OK",
@@ -113,7 +160,7 @@ const getListHoles = () => {
 const getListCracks = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      const cracks = await Crack.find().select('-image');
+      const cracks = await Crack.find().select("-image");
       resolve({
         data: cracks,
         status: "OK",
@@ -125,39 +172,37 @@ const getListCracks = () => {
   });
 };
 
-
 const getDetailHole = (id) => {
   return new Promise(async (resolve, reject) => {
     try {
       const hole = await Hole.findById(id);
-        resolve({
-            image: hole.image.data,
-            data: hole,
-            status: "OK",
-            message: "Get detail hole successfully",
-        });
+      resolve({
+        image: hole.image,
+        data: hole,
+        status: "OK",
+        message: "Get detail hole successfully",
+      });
     } catch (error) {
-        reject(error);
-        }
-    })
-}
+      reject(error);
+    }
+  });
+};
 
 const getDetailCrack = (id) => {
-    return new Promise(async (resolve, reject) => {
-        try {
-        const crack = await Crack.findById(id);
-        resolve({
-            image: crack.image.data,
-            data: crack,
-            status: "OK",
-            message: "Get detail crack successfully",
-        });
-        }
-        catch (error) {
-            reject(error);
-        }
-    })
-}
+  return new Promise(async (resolve, reject) => {
+    try {
+      const crack = await Crack.findById(id);
+      resolve({
+        image: crack.image,
+        data: crack,
+        status: "OK",
+        message: "Get detail crack successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
 
 module.exports = {
   createDetection,
@@ -165,5 +210,5 @@ module.exports = {
   getListHoles,
   getListCracks,
   getDetailHole,
-  getDetailCrack
-}
+  getDetailCrack,
+};
