@@ -99,7 +99,6 @@ const getListHoles = () => {
   return new Promise(async (resolve, reject) => {
     try {
       const holes = await Hole.find();
-      console.log('holes', holes)
       resolve({
         data: holes,
         status: "OK",
