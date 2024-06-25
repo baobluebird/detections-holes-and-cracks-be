@@ -255,7 +255,7 @@ const getListForTracking = (coordinates) => {
             { latitude: coord.latitude, longitude: coord.longitude },
             { latitude: knownCoord.latitude, longitude: knownCoord.longitude }
           );
-          if (distance <= 50) {
+          if (distance <= 60) {
             matchingCoordinates.add(JSON.stringify([knownCoord.latitude, knownCoord.longitude]));
           }
         });
