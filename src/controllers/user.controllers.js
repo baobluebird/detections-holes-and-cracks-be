@@ -241,8 +241,35 @@ const decodeToken = async (req, res) => {
     }
 }
 
+const sendHelp = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const {location} = req.body;
+        if(!location || !userId){
+            return res.status(200).json({
+                status: 'ERR',
+                message: 'The input is required'
+            })
+        }
+        const response = await UserService.sendHelp(userId, location)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({ 
+            message: e
+        })
+    }
+}
 
-
+const getDataSendHelp = async (req, res) => {
+    try {
+        const listData = await UserService.getDataSendHelp()
+        return res.render('homeDataSendHelp.ejs',{ listData: listData.data , count : listData.data.length});
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching users',
+        });
+    }
+}
 
 module.exports = {
     createUser,
@@ -256,5 +283,7 @@ module.exports = {
     refreshToken,
     deleteMany,
     getDetailsUserWithCart,
-    decodeToken
+    decodeToken,
+    sendHelp,
+    getDataSendHelp
 }

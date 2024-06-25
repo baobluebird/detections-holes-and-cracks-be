@@ -164,7 +164,9 @@ const getListHoles = () => {
   return new Promise(async (resolve, reject) => {
     try {
       const holes = await Hole.find();
+      const count = await Hole.countDocuments();
       resolve({
+        total: count,
         data: holes,
         status: "OK",
         message: "Get list holes successfully",
@@ -179,7 +181,10 @@ const getListCracks = () => {
   return new Promise(async (resolve, reject) => {
     try {
       const cracks = await Crack.find();
+      const count = await Crack.countDocuments();
+
       resolve({
+        total: count,
         data: cracks,
         status: "OK",
         message: "Get list cracks successfully",
@@ -255,13 +260,13 @@ const getListForTracking = (coordinates) => {
             { latitude: coord.latitude, longitude: coord.longitude },
             { latitude: knownCoord.latitude, longitude: knownCoord.longitude }
           );
-          if (distance <= 60) {
+          if (distance <= 80) {
             matchingCoordinates.add(JSON.stringify([knownCoord.latitude, knownCoord.longitude]));
           }
         });
       });
 
-
+      console.log('matchingCoordinates:', Array.from(matchingCoordinates).map(JSON.parse))
       resolve({
         status: "OK",
         matchingCoordinates: Array.from(matchingCoordinates).map(JSON.parse),

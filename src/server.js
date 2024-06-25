@@ -13,12 +13,17 @@ const configViewEngine = require("./config/viewEngine");
 const port = process.env.PORT || 3001;
 const app = express();
 const DetectionService = require("./services/detection.services");
+
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(server);
+
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(express.static("public"));
-
 
 configViewEngine(app);
 
@@ -97,8 +102,6 @@ app.post("/api/detection/create", upload.single("image"), async (req, res) => {
       });
     }
 
-    
-
     const response = await DetectionService.createDetection(
       typeDetection,
       location,
@@ -113,6 +116,13 @@ app.post("/api/detection/create", upload.single("image"), async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}.`);
+io.on('connection', (socket) => {
+  console.log('have user connect:>> ', socket.id);
+  io.emit('newUserConnect', 'Have user connect');
 });
+
+server.listen(port, () => {
+  console.log('Server is running on port',port);
+});     
+ 
+global.io = io;

@@ -3,6 +3,11 @@ const bcrypt = require('bcrypt')
 const crypto = require('crypto')
 const {generalAccessToken, generalAccessTokenForEmail} = require("./JwtService");
 const jwt = require('jsonwebtoken');
+const Emergency = require('../models/emergency.model');
+const dotenv = require("dotenv");
+dotenv.config();
+const axios = require("axios");
+
 
 const createUser = async (data) => {
     return new Promise(async (resolve, reject) => {
@@ -216,6 +221,103 @@ const decodeToken = async (token) => {
     });
   }
 
+  function getLocationCoordinates(locationString) {
+    const startIndex = locationString.indexOf("(");
+    const endIndex = locationString.indexOf(")");
+    if (startIndex !== -1 && endIndex !== -1) {
+        const latLngString = locationString.substring(startIndex + 1, endIndex);
+        
+        // Split by comma without extra space
+        const latLngParts = latLngString.split(",");
+        
+        const latitude = parseFloat(latLngParts[0].trim());
+        const longitude = parseFloat(latLngParts[1].trim());
+        
+        
+        if (!isNaN(latitude) && !isNaN(longitude)) {
+            return { latitude, longitude };
+        } else {
+            console.log("Invalid coordinates format");
+            return null;
+        }
+    } else {
+        console.log("Invalid location string format");
+        return null;
+    }
+}
+
+  
+  async function getAddressFromCoordinates(latitude, longitude) {
+    try {
+      const apiKey = process.env.API_GOOGLE_KEY;
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
+      const response = await axios.get(url);
+      const address = response.data.results[0].formatted_address;
+      return address;
+    } catch (error) {
+      console.error("Error fetching address:", error.message);
+      return null;
+    }
+  }
+
+const sendHelp = async (userId, location) =>{
+    return new Promise(async (resolve, reject) => {
+    try {
+        const io = global.io;
+
+        const user = await User.findById(userId)
+        const { latitude, longitude } = getLocationCoordinates(location);
+        const address = await getAddressFromCoordinates(latitude, longitude);
+        const help = await Emergency.create({
+            name: user.name,
+            user: userId,
+            phone: user.phone,
+            location: location,
+            address: address
+        })
+        if (!help) {
+            reject ({
+                status: 'ERR',
+                message: 'Send help failed'
+            })
+        }
+        else {
+            const getData = await Emergency.find()
+            io.emit("newDataSendHelpAdded", getData);
+            resolve({
+                status: 'OK',
+                message: 'Send help successfully'
+            })
+        }
+    } catch (error) {
+        reject(error);
+      }
+    });
+  
+}
+
+const getDataSendHelp = async () => {
+    return new Promise(async (resolve, reject) => {
+      try {
+          const getData = await Emergency.find()
+          if(!getData){
+              resolve({
+                  status: 'ERR',
+                  message: 'Get data failed'
+              })
+          }
+          resolve({
+              data:getData,
+              status: 'OK',
+              message: 'Get data successfully'
+          })
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+  
+
 module.exports = {
     createUser,
     loginUser,
@@ -223,5 +325,7 @@ module.exports = {
     updateUser,
     getDetailsUser,
     changePassword,
-    decodeToken
+    decodeToken,
+    sendHelp,
+    getDataSendHelp
 }
