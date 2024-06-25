@@ -11,5 +11,5 @@ router.get('/get-detail-crack/:id', detectionController.getDetailCrack);
 router.get('/get-list-holes', detectionController.getListHoles);
 router.get('/get-list-crack', detectionController.getListCracks);
 
-
+router.post('/post-location-tracking', detectionController.getListForTracking)
 module.exports = router;  

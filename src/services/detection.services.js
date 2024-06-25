@@ -1,34 +1,35 @@
 const Hole = require("../models/hole.model");
 const Crack = require("../models/crack.model");
-const cloudinary = require("cloudinary");
 const dotenv = require("dotenv");
+const axios = require('axios');
 dotenv.config();
 const path = require("path");
 const fs = require("fs");
-
+const geolib = require('geolib');
+const cloudinary = require("cloudinary");
 cloudinary.config({
   cloud_name: process.env.API_NAME_CLOUDINARY,
   api_key: process.env.API_KEY_CLOUDDINARY,
   api_secret: process.env.API_SECRET_CLOUDDINARY,
 });
 
+
 const createDetection = async (
   typeDetection,
   location,
   image,
-  description,
   userId,
   address
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
       if (typeDetection === "Ổ gà") {
+
         const hole = await Hole.create({
           name: "Ổ gà",
           user: userId,
           location: location,
           address: address,
-          description: description,
         });
 
         const uploadsDir = path.join(__dirname, '../uploads');
@@ -45,12 +46,17 @@ const createDetection = async (
         });
 
         fs.unlinkSync(imagePath);
+        
+        const url = `http://103.188.243.119:8000/process-image?image_url=${savedImage.secure_url}`;
 
-        hole.image = savedImage.secure_url;
+        const response = await axios.post(url);
+
+        hole.image = response.data.image_url;
+        hole.description = response.data.result;
         await hole.save();
 
         resolve({
-          image: image.data,
+          image: response.data.image_url,
           data: hole,
           status: "OK",
           message: "Create hole successfully",
@@ -61,7 +67,6 @@ const createDetection = async (
           user: userId,
           location: location,
           address: address,
-          description: description,
         });
         const uploadsDir = path.join(__dirname, '../uploads');
         if (!fs.existsSync(uploadsDir)) {
@@ -77,12 +82,17 @@ const createDetection = async (
         });
 
         fs.unlinkSync(imagePath);
+        const url = `http://103.188.243.119:8000/process-image?image_url=${savedImage.secure_url}`;
 
-        crack.image = savedImage.secure_url;
+        const response = await axios.post(url);
+
+        crack.image = response.data.image_url;
+        crack.description = response.data.result;
+
         await crack.save();
 
         resolve({
-          image: image.data,
+          image: response.data.image_url,
           data: crack,
           status: "OK",
           message: "Create crack successfully",
@@ -145,7 +155,7 @@ const getLatLongDetection = () => {
 const getListHoles = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      const holes = await Hole.find().select("-image");
+      const holes = await Hole.find();
       resolve({
         data: holes,
         status: "OK",
@@ -160,7 +170,7 @@ const getListHoles = () => {
 const getListCracks = () => {
   return new Promise(async (resolve, reject) => {
     try {
-      const cracks = await Crack.find().select("-image");
+      const cracks = await Crack.find();
       resolve({
         data: cracks,
         status: "OK",
@@ -204,6 +214,57 @@ const getDetailCrack = (id) => {
   });
 };
 
+const getListForTracking = (coordinates) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const latLongLargeHole = await Hole.find({ description: { $in: ["Large"] } }).select("location");
+
+      const formatLatLng = (latLngObjects) => {
+        return latLngObjects
+          .map((obj) => {
+            const matches = obj.location.match(/LatLng\(latitude:(.*), longitude:(.*)\)/);
+            if (matches && matches.length === 3) {
+              return { latitude: parseFloat(matches[1]), longitude: parseFloat(matches[2]) };
+            } else {
+              return null; 
+            }
+          })
+          .filter(Boolean);
+      };
+
+      const formattedLatLongLargeHole = formatLatLng(latLongLargeHole);
+
+
+      const allKnownCoordinates = [
+        ...formattedLatLongLargeHole,
+      ];
+
+      const matchingCoordinates = new Set();
+
+      coordinates.forEach((coord) => {
+        allKnownCoordinates.forEach((knownCoord) => {
+          const distance = geolib.getDistance(
+            { latitude: coord.latitude, longitude: coord.longitude },
+            { latitude: knownCoord.latitude, longitude: knownCoord.longitude }
+          );
+          if (distance <= 50) {
+            matchingCoordinates.add(JSON.stringify([knownCoord.latitude, knownCoord.longitude]));
+          }
+        });
+      });
+
+
+      resolve({
+        status: "OK",
+        matchingCoordinates: Array.from(matchingCoordinates).map(JSON.parse),
+        message: "Data for tracking response successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 module.exports = {
   createDetection,
   getLatLongDetection,
@@ -211,4 +272,5 @@ module.exports = {
   getListCracks,
   getDetailHole,
   getDetailCrack,
+  getListForTracking
 };

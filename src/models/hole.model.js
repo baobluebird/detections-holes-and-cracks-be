@@ -7,7 +7,7 @@ const holeSchema = new mongoose.Schema(
         location: { type: String, required: true},
         address: { type: String, required: true },
         image: { type: String},
-        description: { type: String, required: true },
+        description: { type: String},
     },
     {
         timestamps: true

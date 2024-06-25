@@ -54,10 +54,24 @@ const getDetailCrack = async (req, res) => {
         })
     }
 }
+
+const getListForTracking = async (req, res) => {
+    try {
+        const { coordinates } = req.body;
+        const response = await DetectionServices.getListForTracking(coordinates)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
 module.exports = {
     getLatLongDetection,
     getListHoles,
     getListCracks,
     getDetailHole,
-    getDetailCrack
+    getDetailCrack,
+    getListForTracking
 }

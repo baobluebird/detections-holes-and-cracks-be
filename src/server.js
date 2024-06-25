@@ -81,16 +81,13 @@ app.post("/api/detection/create", upload.single("image"), async (req, res) => {
     };
 
     const { typeDetection, location, userId } = req.body;
-    const description = "Large";
 
     const { latitude, longitude } = getLocationCoordinates(location);
     const address = await getAddressFromCoordinates(latitude, longitude);
-
     if (
       !typeDetection ||
       !location ||
       !image ||
-      !description ||
       !userId ||
       !address
     ) {
@@ -106,7 +103,6 @@ app.post("/api/detection/create", upload.single("image"), async (req, res) => {
       typeDetection,
       location,
       image,
-      description,
       userId,
       address
     );

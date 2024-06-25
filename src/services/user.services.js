@@ -16,7 +16,6 @@ const createUser = async (data) => {
           });
         }else{
             console.log('data',user)
-
             user.password = bcrypt.hashSync(user.password, 10)
             await User.create({
                 name: user.name,
@@ -40,6 +39,7 @@ const loginUser = async (data) => {
     return new Promise(async (resolve, reject) => {
     try {
         const user = data
+        console.log('data',user)
         const checkUser = await User.findOne({ email: user.email });
         if (checkUser == null) {
           return resolve({
