@@ -50,7 +50,15 @@ const createDetection = async (
         const url = `http://103.188.243.119:8000/process-image?image_url=${savedImage.secure_url}`;
 
         const response = await axios.post(url);
-
+        console.log(response.data)
+        if(response.data.result == 'No detection'){
+          //delete hole
+          await Hole.findByIdAndDelete(hole._id);
+          resolve({
+            status: "ERR",
+            message: "No detection",
+          });
+        }
         hole.image = response.data.image_url;
         hole.description = response.data.result;
         await hole.save();
