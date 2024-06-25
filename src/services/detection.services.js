@@ -278,6 +278,48 @@ const getListForTracking = (coordinates) => {
   });
 };
 
+const deleteHole = (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const check = await Hole.findById(id);
+      if(!check){
+        reject({
+          status: "ERR",
+          message: "Hole not found",
+        });
+      }
+      await Hole.findByIdAndDelete(id);
+      resolve({
+        status: "OK",
+        message: "Delete hole successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const deleteCrack = (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const check = await Crack.findById(id);
+      if(!check){
+        reject({
+          status: "ERR",
+          message: "Crack not found",
+        });
+      }
+      await Crack.findByIdAndDelete(id);
+      resolve({
+        status: "OK",
+        message: "Delete crack successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 module.exports = {
   createDetection,
   getLatLongDetection,
@@ -285,5 +327,7 @@ module.exports = {
   getListCracks,
   getDetailHole,
   getDetailCrack,
-  getListForTracking
+  getListForTracking,
+  deleteHole,
+  deleteCrack
 };

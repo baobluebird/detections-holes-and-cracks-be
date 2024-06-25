@@ -67,11 +67,35 @@ const getListForTracking = async (req, res) => {
     }
 }
 
+const deleteHole = async (req, res) => {
+    try {
+        const response = await DetectionServices.deleteHole(req.params.id)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
+const deleteCrack = async (req, res) => {
+    try {
+        const response = await DetectionServices.deleteCrack(req.params.id)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
 module.exports = {
     getLatLongDetection,
     getListHoles,
     getListCracks,
     getDetailHole,
     getDetailCrack,
-    getListForTracking
+    getListForTracking,
+    deleteHole,
+    deleteCrack,
 }
