@@ -89,6 +89,51 @@ const deleteCrack = async (req, res) => {
     }
 }
 
+const createMaintainRoad = async (req, res) => {
+    try {
+        const {locationA, locationB, date} = req.body;
+        const response = await DetectionServices.createMaintainRoad(locationA, locationB, date )
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
+const getMaintainRoad = async (req, res) => {
+    try {
+        const response = await DetectionServices.getMaintainRoad()
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
+const getMaintainRoadForMap = async (req, res) => {
+    try {
+        const response = await DetectionServices.getMaintainRoadForMap()
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
+const deleteMaintain = async (req, res) => {
+    try {
+        const response = await DetectionServices.deleteMaintain(req.params.id)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
 module.exports = {
     getLatLongDetection,
     getListHoles,
@@ -98,4 +143,8 @@ module.exports = {
     getListForTracking,
     deleteHole,
     deleteCrack,
+    createMaintainRoad,
+    getMaintainRoad,
+    getMaintainRoadForMap,
+    deleteMaintain
 }

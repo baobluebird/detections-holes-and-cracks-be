@@ -1,5 +1,6 @@
 const Hole = require("../models/hole.model");
 const Crack = require("../models/crack.model");
+const Road = require("../models/road.model");
 const dotenv = require("dotenv");
 const axios = require('axios');
 dotenv.config();
@@ -272,7 +273,6 @@ const getListForTracking = (coordinates) => {
         });
       });
 
-      console.log('matchingCoordinates:', Array.from(matchingCoordinates).map(JSON.parse))
       resolve({
         status: "OK",
         matchingCoordinates: Array.from(matchingCoordinates).map(JSON.parse),
@@ -326,6 +326,128 @@ const deleteCrack = (id) => {
   });
 };
 
+function getLocationCoordinates(locationStringA, locationStringB) {
+  const startIndexA = locationStringA.indexOf("(");
+  const endIndexA = locationStringA.indexOf(")");
+
+  const startIndexB = locationStringB.indexOf("(");
+  const endIndexB = locationStringB.indexOf(")");
+  
+  if (startIndexA !== -1 && endIndexA !== -1 ) {
+    const latLngStringA = locationStringA.substring(startIndexA + 1, endIndexA);
+    const latLngPartsA = latLngStringA.split(", ");
+
+    const latLngStringB = locationStringB.substring(startIndexB + 1, endIndexB);
+    const latLngPartsB = latLngStringB.split(", ");
+
+    const latitudeA = parseFloat(latLngPartsA[0]);
+    const longitudeA = parseFloat(latLngPartsA[1]);
+
+    const latitudeB = parseFloat(latLngPartsB[0]);
+    const longitudeB = parseFloat(latLngPartsB[1]);
+
+    return { latitudeA, longitudeA, latitudeB, longitudeB };
+  } else {
+    console.log("Invalid location string format");
+    return null;
+  }
+}
+
+async function getAddressFromCoordinates(latitude, longitude) {
+  try {
+    const apiKey = process.env.API_GOOGLE_KEY;
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
+
+    const response = await axios.get(url);
+    const address = response.data.results[0].formatted_address;
+    return address;
+  } catch (error) {
+    console.error("Error fetching address:", error.message);
+    return null;
+  }
+}
+
+const createMaintainRoad = (locationA, locationB, date) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { latitudeA, longitudeA, latitudeB, longitudeB} = await getLocationCoordinates(locationA, locationB);
+
+      const addressA = await getAddressFromCoordinates(latitudeA, longitudeA);
+      const addressB = await getAddressFromCoordinates(latitudeB, longitudeB);
+
+      const createMaintain = await Road.create({
+        sourceName: addressA,
+        destinationName: addressB,
+        locationA: locationA,
+        locationB: locationB,
+        dateMaintain: date
+      }); 
+      if(createMaintain)    {
+        resolve({
+          status: "OK",
+          data: createMaintain,
+          message: "Create maintain road successfully",
+        });
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const getMaintainRoad =  () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      
+      const data = await Road.find()
+      if(data)    {
+        resolve({
+          status: "OK",
+          data: data,
+          message: "Get data maintain road successfully",
+        });
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const getMaintainRoadForMap =  () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      
+      const data = await Road.find().select('locationA locationB -_id');
+      if(data)    {
+        resolve({
+          status: "OK",
+          data: data,
+          message: "Get data maintain road successfully",
+        });
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const deleteMaintain =  (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      
+      await Road.findByIdAndDelete(id)
+        resolve({
+          status: "OK",
+          message: "Delete maintain road successfully",
+        });
+      
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+
 module.exports = {
   createDetection,
   getLatLongDetection,
@@ -335,5 +457,9 @@ module.exports = {
   getDetailCrack,
   getListForTracking,
   deleteHole,
-  deleteCrack
+  deleteCrack,
+  createMaintainRoad,
+  getMaintainRoad,
+  getMaintainRoadForMap,
+  deleteMaintain
 };
