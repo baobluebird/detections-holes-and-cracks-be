@@ -238,7 +238,7 @@ const getListForTracking = (coordinates) => {
   return new Promise(async (resolve, reject) => {
     try {
       const latLongLargeHole = await Hole.find({ description: { $in: ["Large"] } }).select("location");
-
+      const latLongMaintainRoad = await Road.find().select("locationA");
       const formatLatLng = (latLngObjects) => {
         return latLngObjects
           .map((obj) => {
@@ -252,30 +252,66 @@ const getListForTracking = (coordinates) => {
           .filter(Boolean);
       };
 
+      const formatLatLngMaintainRoad = (latLngObjects) => {
+        return latLngObjects
+          .map((obj) => {
+            const matches = obj.locationA.match(/LatLng\((.*), (.*)\)/);
+            if (matches && matches.length === 3) {
+              return { latitude: parseFloat(matches[1]), longitude: parseFloat(matches[2]) };
+            } else {
+              return null; 
+            }
+          })
+          .filter(Boolean);
+      };
+
+
       const formattedLatLongLargeHole = formatLatLng(latLongLargeHole);
 
-
-      const allKnownCoordinates = [
+      const formattedLatLongMaintainRoad= formatLatLngMaintainRoad(latLongMaintainRoad);
+      
+      const allKnownCoordinatesHole = [
         ...formattedLatLongLargeHole,
       ];
 
-      const matchingCoordinates = new Set();
+      const allKnownCoordinatesMaintainRoad = [
+        ...formattedLatLongMaintainRoad,
+      ];
+
+      const matchingCoordinatesHole = new Set();
+      const matchingCoordinatesMaintainRoad = new Set();
+
 
       coordinates.forEach((coord) => {
-        allKnownCoordinates.forEach((knownCoord) => {
+        allKnownCoordinatesHole.forEach((knownCoord) => {
           const distance = geolib.getDistance(
             { latitude: coord.latitude, longitude: coord.longitude },
             { latitude: knownCoord.latitude, longitude: knownCoord.longitude }
           );
           if (distance <= 80) {
-            matchingCoordinates.add(JSON.stringify([knownCoord.latitude, knownCoord.longitude]));
+            matchingCoordinatesHole.add(JSON.stringify([knownCoord.latitude, knownCoord.longitude]));
           }
         });
       });
 
+      coordinates.forEach((coord) => {
+        allKnownCoordinatesMaintainRoad.forEach((knownCoord) => {
+          const distance = geolib.getDistance(
+            { latitude: coord.latitude, longitude: coord.longitude },
+            { latitude: knownCoord.latitude, longitude: knownCoord.longitude }
+          );
+          if (distance <= 80) {
+            matchingCoordinatesMaintainRoad.add(JSON.stringify([knownCoord.latitude, knownCoord.longitude]));
+          }
+        });
+      });
+
+
+      console.log(Array.from(matchingCoordinatesMaintainRoad).map(JSON.parse))
       resolve({
         status: "OK",
-        matchingCoordinates: Array.from(matchingCoordinates).map(JSON.parse),
+        matchingCoordinatesHole: Array.from(matchingCoordinatesHole).map(JSON.parse),
+        matchingCoordinatesMaintainRoad: Array.from(matchingCoordinatesMaintainRoad).map(JSON.parse),
         message: "Data for tracking response successfully",
       });
     } catch (error) {
