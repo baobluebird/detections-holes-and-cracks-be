@@ -7,6 +7,7 @@
       #map {
         height: 100%;
         width: 100%;
+        position: relative;
       }
 
       /* Đảm bảo trang và bản đồ có kích thước hợp lý */
@@ -15,9 +16,78 @@
         margin: 0;
         padding: 0;
       }
+
+      /* Container thông tin các loại lỗ và nứt */
+      .info-container {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        background-color: white;
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        width: 140px;
+        
+        /* Thêm border */
+        border: 2px solid #0074f8; /* Thay đổi màu border (vd: cam) */
+      }
+
+      /* Định dạng của từng dòng điều kiện */
+      .info-container h3 {
+        margin-top: 0;
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+      }
+
+      .info-container .item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .info-container .item img {
+        width: 24px;
+        height: 24px;
+        margin-right: 10px;
+      }
+
+      .info-container .item span {
+        font-size: 16px;
+        font-family: 'Be Vietnam Pro', sans-serif; /* Use the Be Vietnam Pro font */
+        color: #000000; /* Set font color */
+      }
+      
     </style>
   </head>
   <body>
+    <!-- Container chứa thông tin về tình trạng đường -->
+    <div class="info-container">
+      
+      <div class="item">
+        <img src="/images/fix_road.png" alt="Maintain">
+        <span>Maintain</span>
+      </div>
+      
+      <div class="item">
+        <img src="/images/small_hole.png" alt="Small Hole">
+        <span>Small Hole</span>
+      </div>
+      <div class="item">
+        <img src="/images/large_hole.png" alt="Large Hole">
+        <span>Large Hole</span>
+      </div>
+      <div class="item">
+        <img src="/images/small_crack.png" alt="Small Crack">
+        <span>Small Crack</span>
+      </div>
+      <div class="item">
+        <img src="/images/large_crack.png" alt="Large Crack">
+        <span>Large Crack</span>
+      </div>
+    </div>
+
     <div id="map"></div>
 
     <script>
@@ -39,14 +109,12 @@
           center: { lat: 16.047079, lng: 108.206230 }, // Đà Nẵng
           zoom: 12,
           mapTypeId: 'terrain', // Hiển thị chế độ Terrain
-
         });
     
         // Lấy danh sách các tọa độ từ API và vẽ lên bản đồ
         fetchMarkers(holesUrl, "hole");
         fetchMarkers(cracksUrl, "crack");
         fetchMaintainRoads(maintainRoadUrl); // Lấy dữ liệu bảo trì đường và vẽ polyline
-
       }
     
       function fetchMarkers(url, type) {
@@ -176,9 +244,6 @@
       }
     </script>
     
-    
-      
-
     <!-- Gắn API key của Google Maps -->
     <script async defer
       src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&callback=initMap">
