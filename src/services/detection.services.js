@@ -48,7 +48,7 @@ const createDetection = async (
 
         fs.unlinkSync(imagePath);
         
-        const url = `http://103.188.243.119:8000/process-image?image_url=${savedImage.secure_url}`;
+        const url = `${process.env.URL_VPS_HOLE}/process-image?image_url=${savedImage.secure_url}`;
 
         const response = await axios.post(url);
         if(response.data.result == 'No detection'){
@@ -90,7 +90,7 @@ const createDetection = async (
         });
 
         fs.unlinkSync(imagePath);
-        const url = `http://103.188.243.119:8001/process-image?image_url=${savedImage.secure_url}`;
+        const url = `${process.env.URL_VPS_CRACK}/process-image?image_url=${savedImage.secure_url}`;
 
         const response = await axios.post(url);
         if(response.data.result == 'No detection'){
