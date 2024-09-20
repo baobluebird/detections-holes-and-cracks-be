@@ -134,6 +134,21 @@ const deleteMaintain = async (req, res) => {
     }
 }
 
+const getMap = async (req,res) =>{
+    try{
+        return res.render('map.ejs',{
+            googleMapsApiKey: process.env.API_GOOGLE_KEY,
+            holesUrl: `${process.env.URL_VPS}/api/detection/get-list-holes`,
+            cracksUrl: `${process.env.URL_VPS}/api/detection/get-list-crack`,
+            maintainRoadUrl: `${process.env.URL_VPS}/api/detection/get-maintain-road`}    
+            );
+    }catch(e){
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
 module.exports = {
     getLatLongDetection,
     getListHoles,
@@ -146,5 +161,6 @@ module.exports = {
     createMaintainRoad,
     getMaintainRoad,
     getMaintainRoadForMap,
-    deleteMaintain
+    deleteMaintain,
+    getMap
 }

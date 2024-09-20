@@ -20,4 +20,6 @@ router.get('/get-maintain-road-for-map', detectionController.getMaintainRoadForM
 router.delete('/delete-maintain/:id', detectionController.deleteMaintain)
 
 router.post('/post-location-tracking', detectionController.getListForTracking)
+
+router.get('/map', detectionController.getMap)
 module.exports = router;  

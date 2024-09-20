@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Map with Markers</title>
+    <style>
+      /* Kích thước bản đồ */
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+
+      /* Đảm bảo trang và bản đồ có kích thước hợp lý */
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <script>
+      let map;
+      const holesUrl = `<%= holesUrl %>`;
+      const cracksUrl = "<%= cracksUrl %>";
+      const maintainRoadUrl = "<%= maintainRoadUrl %>";
+
+      // Các đường dẫn tới hình ảnh icon
+      const largeCrackIcon = "/images/large_crack.png";
+      const largeHoleIcon = "/images/large_hole.png";
+      const smallCrackIcon = "/images/small_crack.png";
+      const smallHoleIcon = "/images/small_hole.png";
+      const fixRoadIcon = "/images/fix_road.png"; 
+
+      function initMap() {
+        // Khởi tạo bản đồ tại vị trí trung tâm
+        map = new google.maps.Map(document.getElementById("map"), {
+          center: { lat: 16.047079, lng: 108.206230 }, // Đà Nẵng
+          zoom: 12,
+          mapTypeId: 'terrain', // Hiển thị chế độ Terrain
+
+        });
+    
+        // Lấy danh sách các tọa độ từ API và vẽ lên bản đồ
+        fetchMarkers(holesUrl, "hole");
+        fetchMarkers(cracksUrl, "crack");
+        fetchMaintainRoads(maintainRoadUrl); // Lấy dữ liệu bảo trì đường và vẽ polyline
+
+      }
+    
+      function fetchMarkers(url, type) {
+        fetch(url)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data && data.data) {
+              data.data.forEach((item) => {
+                const locationString = item.location;
+                const latLng = extractLatLngForHoleCrack(locationString);
+    
+                if (latLng) {
+                  const markerIcon = getMarkerIcon(type, item.description);
+    
+                  const marker = new google.maps.Marker({
+                    position: latLng,
+                    map: map,
+                    title: type === "hole" ? "Hole" : "Crack",
+                    icon: markerIcon,
+                  });
+                }
+              });
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching markers:", error);
+          });
+      }
+    
+      function fetchMaintainRoads(url) {
+        fetch(url)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data && data.data) {
+              data.data.forEach((item) => {
+                const locationA = extractLatLng(item.locationA);
+                const locationB = extractLatLng(item.locationB);
+      
+                if (locationA && locationB) {
+                  // Vẽ đường polyline giữa locationA và locationB
+                  const roadPath = new google.maps.Polyline({
+                    path: [locationA, locationB],
+                    geodesic: true,
+                    strokeColor: "#FF0000",
+                    strokeOpacity: 1.0,
+                    strokeWeight: 2,
+                    map: map
+                  });
+      
+                  // Tính tọa độ trung bình giữa locationA và locationB
+                  const midPoint = {
+                    lat: (locationA.lat + locationB.lat) / 2,
+                    lng: (locationA.lng + locationB.lng) / 2
+                  };
+      
+                  // Thêm một icon duy nhất ở giữa locationA và locationB
+                  new google.maps.Marker({
+                    position: midPoint,
+                    map: map,
+                    icon: {
+                      url: fixRoadIcon,
+                      scaledSize: new google.maps.Size(32, 32) // Kích thước icon
+                    },
+                    title: "Road Maintenance"
+                  });
+                }
+              });
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching road maintenance data:", error);
+          });
+      }
+
+      function extractLatLngForHoleCrack(locationString) {
+        const regex = /latitude:([0-9.\-]+),\s*longitude:([0-9.\-]+)/;
+        const match = locationString.match(regex);
+    
+        if (match) {
+          const lat = parseFloat(match[1]);
+          const lng = parseFloat(match[2]);
+          return { lat, lng };
+        }
+        return null;
+      }
+
+      function extractLatLng(locationString) {
+        // Ví dụ của locationString: "LatLng(16.070293, 108.151578)"
+        const regex = /LatLng\(([0-9.\-]+),\s*([0-9.\-]+)\)/;
+        const match = locationString.match(regex);
+      
+        if (match) {
+          const lat = parseFloat(match[1]);
+          const lng = parseFloat(match[2]);
+          return { lat, lng };
+        }
+        return null;
+      }
+      
+    
+      function getMarkerIcon(type, size) {
+        let iconUrl = "";
+        let iconSize = { width: 32, height: 32 }; // Kích thước mặc định
+    
+        if (type === "hole") {
+          if (size === "Large") {
+            iconUrl = largeHoleIcon;
+            iconSize = { width: 40, height: 40 }; // Kích thước cho hole lớn
+          } else {
+            iconUrl = smallHoleIcon;
+            iconSize = { width: 30, height: 30 }; // Kích thước cho hole nhỏ
+          }
+        } else if (type === "crack") {
+          if (size === "Large") {
+            iconUrl = largeCrackIcon;
+            iconSize = { width: 40, height: 40 }; // Kích thước cho crack lớn
+          } else {
+            iconUrl = smallCrackIcon;
+            iconSize = { width: 30, height: 30 }; // Kích thước cho crack nhỏ
+          }
+        }
+    
+        return {
+          url: iconUrl,
+          scaledSize: new google.maps.Size(iconSize.width, iconSize.height), // Kích thước đã chỉnh
+        };
+      }
+    </script>
+    
+    
+      
+
+    <!-- Gắn API key của Google Maps -->
+    <script async defer
+      src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&callback=initMap">
+    </script>
+  </body>
+</html>
