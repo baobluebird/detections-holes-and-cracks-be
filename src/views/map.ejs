@@ -132,7 +132,7 @@
                   const marker = new google.maps.Marker({
                     position: latLng,
                     map: map,
-                    title: type === "hole" ? "Hole" : "Crack",
+                    title: type === "hole" ? `${item.description} Hole` : `${item.description} Crack`,
                     icon: markerIcon,
                   });
                 }
@@ -178,7 +178,8 @@
                       url: fixRoadIcon,
                       scaledSize: new google.maps.Size(32, 32) // Kích thước icon
                     },
-                    title: "Road Maintenance"
+                    title: `Day Maintain: ${item.dateMaintain} - Start: ${new Date(item.createdAt)} - End: ${new Date(item.updatedAt)}`
+                    
                   });
                 }
               });
