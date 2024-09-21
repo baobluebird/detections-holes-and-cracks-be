@@ -434,11 +434,12 @@ const createMaintainRoad = (locationA, locationB, date) => {
 const getMaintainRoad =  () => {
   return new Promise(async (resolve, reject) => {
     try {
-      
+      const count = await Road.countDocuments();
       const data = await Road.find()
       if(data)    {
         resolve({
           status: "OK",
+          total: count,
           data: data,
           message: "Get data maintain road successfully",
         });

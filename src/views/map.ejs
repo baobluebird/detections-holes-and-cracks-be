@@ -59,9 +59,80 @@
         color: #000000; /* Set font color */
       }
       
+      /* Bottom Sheet */
+      .bottom-sheet {
+        position: fixed;
+        bottom: -100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+        transition: bottom 0.3s ease-in-out;
+        border-radius: 16px 16px 0 0;
+        padding: 20px;
+        z-index: 100;
+        height: 200px;
+        overflow-y: auto;
+      }
+
+      /* Nút mở bottom sheet */
+      .open-bottom-sheet {
+        position: absolute;
+        bottom: 220px;
+        left: 10px;
+        background-color: #ffffff;
+        color: rgb(0, 0, 0);
+        font-size: 16px;
+        font-family: 'Be Vietnam Pro', sans-serif;
+        padding: 10px 20px;
+        border-radius: 50px;
+        cursor: pointer;
+        z-index: 10;
+      }
+
+      /* Nút đóng bottom sheet */
+      .close-bottom-sheet {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 10px;
+      }
+
+      .close-bottom-sheet button {
+        background-color: #f44336;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      /* Định dạng nội dung bên trong bottom sheet */
+      .bottom-sheet-content {
+        font-size: 16px;
+        font-family: 'Be Vietnam Pro', sans-serif;
+        color: #333;
+      }
+
     </style>
   </head>
   <body>
+
+    <!-- Nút mở bottom sheet -->
+    <div class="open-bottom-sheet">Detail</div>
+
+    <!-- Bottom Sheet -->
+    <div class="bottom-sheet" id="bottomSheet">
+      <div class="close-bottom-sheet">
+        <button onclick="closeBottomSheet()">X</button>
+      </div>
+      <div class="bottom-sheet-content">
+        <h3>Thông tin chi tiết</h3>
+        <p>Tổng số ổ gà hiện tại: <%= totalHole %></p>
+        <p>Tổng số vết nứt hiện tại: <%= totalCrack %></p>
+        <p>Tổng số đoạn đường đang bảo trì: <%= totalMaintain %></p>
+      </div>
+    </div>
+
     <!-- Container chứa thông tin về tình trạng đường -->
     <div class="info-container">
       
@@ -91,6 +162,17 @@
     <div id="map"></div>
 
     <script>
+
+      // Mở bottom sheet
+      document.querySelector('.open-bottom-sheet').addEventListener('click', function() {
+        document.getElementById('bottomSheet').style.bottom = '0';
+      });
+
+      // Đóng bottom sheet
+      function closeBottomSheet() {
+        document.getElementById('bottomSheet').style.bottom = '-100%';
+      }
+
       let map;
       const holesUrl = `<%= holesUrl %>`;
       const cracksUrl = "<%= cracksUrl %>";
@@ -178,7 +260,7 @@
                       url: fixRoadIcon,
                       scaledSize: new google.maps.Size(32, 32) // Kích thước icon
                     },
-                    title: `Day Maintain: ${item.dateMaintain} - Start: ${new Date(item.createdAt)} - End: ${new Date(item.updatedAt)}`
+                    title: `Day Maintain: ${item.dateMaintain} - Start: ${(new Date(item.createdAt)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} - End: ${(new Date(item.updatedAt)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
                     
                   });
                 }
