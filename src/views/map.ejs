@@ -1,335 +1,360 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Map with Markers</title>
-    <style>
-      /* Kích thước bản đồ */
-      #map {
-        height: 100%;
-        width: 100%;
-        position: relative;
-      }
 
-      /* Đảm bảo trang và bản đồ có kích thước hợp lý */
-      html, body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
+<head>
+  <title>Map with Markers</title>
+  <style>
+    /* Kích thước bản đồ */
+    #map {
+      height: 100%;
+      width: 100%;
+      position: relative;
+    }
 
-      /* Container thông tin các loại lỗ và nứt */
-      .info-container {
-        position: absolute;
-        bottom: 10px;
-        left: 10px;
-        background-color: white;
-        padding: 10px;
-        border-radius: 8px;
-        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-        z-index: 10;
-        width: 140px;
-        
-        /* Thêm border */
-        border: 2px solid #0074f8; /* Thay đổi màu border (vd: cam) */
-      }
+    /* Đảm bảo trang và bản đồ có kích thước hợp lý */
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
 
-      /* Định dạng của từng dòng điều kiện */
-      .info-container h3 {
-        margin-top: 0;
-        font-size: 18px;
-        font-weight: bold;
-        text-align: center;
-      }
+    /* Container thông tin các loại lỗ và nứt */
+    .info-container {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background-color: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      z-index: 10;
+      width: 140px;
 
-      .info-container .item {
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-      }
+      /* Thêm border */
+      border: 2px solid #0074f8;
+      /* Thay đổi màu border (vd: cam) */
+    }
 
-      .info-container .item img {
-        width: 24px;
-        height: 24px;
-        margin-right: 10px;
-      }
+    /* Định dạng của từng dòng điều kiện */
+    .info-container h3 {
+      margin-top: 0;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+    }
 
-      .info-container .item span {
-        font-size: 16px;
-        font-family: 'Be Vietnam Pro', sans-serif; /* Use the Be Vietnam Pro font */
-        color: #000000; /* Set font color */
-      }
-      
-      /* Bottom Sheet */
-      .bottom-sheet {
-        position: fixed;
-        bottom: -100%;
-        left: 0;
-        right: 0;
-        background-color: white;
-        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
-        transition: bottom 0.3s ease-in-out;
-        border-radius: 16px 16px 0 0;
-        padding: 20px;
-        z-index: 100;
-        height: 200px;
-        overflow-y: auto;
-      }
+    .info-container .item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
 
-      /* Nút mở bottom sheet */
-      .open-bottom-sheet {
-        position: absolute;
-        bottom: 220px;
-        left: 10px;
-        background-color: #ffffff;
-        color: rgb(0, 0, 0);
-        font-size: 16px;
-        font-family: 'Be Vietnam Pro', sans-serif;
-        padding: 10px 20px;
-        border-radius: 50px;
-        cursor: pointer;
-        z-index: 10;
-      }
+    .info-container .item img {
+      width: 24px;
+      height: 24px;
+      margin-right: 10px;
+    }
 
-      /* Nút đóng bottom sheet */
-      .close-bottom-sheet {
-        display: flex;
-        justify-content: flex-end;
-        margin-bottom: 10px;
-      }
+    .info-container .item span {
+      font-size: 16px;
+      font-family: 'Be Vietnam Pro', sans-serif;
+      /* Use the Be Vietnam Pro font */
+      color: #000000;
+      /* Set font color */
+    }
 
-      .close-bottom-sheet button {
-        background-color: #f44336;
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 50%;
-        cursor: pointer;
-      }
+    /* Bottom Sheet */
+    .bottom-sheet {
+      position: fixed;
+      bottom: -100%;
+      left: 0;
+      right: 0;
+      background-color: white;
+      box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+      transition: bottom 0.3s ease-in-out;
+      border-radius: 16px 16px 0 0;
+      padding: 20px;
+      z-index: 100;
+      height: 200px;
+      overflow-y: auto;
+    }
 
-      /* Định dạng nội dung bên trong bottom sheet */
-      .bottom-sheet-content {
-        font-size: 16px;
-        font-family: 'Be Vietnam Pro', sans-serif;
-        color: #333;
-      }
+    /* Nút mở bottom sheet */
+    .open-bottom-sheet {
+      position: absolute;
+      bottom: 220px;
+      left: 10px;
+      background-color: #ffffff;
+      color: rgb(0, 0, 0);
+      font-size: 16px;
+      font-family: 'Be Vietnam Pro', sans-serif;
+      padding: 10px 20px;
+      border-radius: 50px;
+      cursor: pointer;
+      z-index: 10;
+    }
 
-    </style>
-  </head>
-  <body>
+    /* Nút đóng bottom sheet */
+    .close-bottom-sheet {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 10px;
+    }
 
-    <!-- Nút mở bottom sheet -->
-    <div class="open-bottom-sheet">Detail</div>
+    .close-bottom-sheet button {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
 
-    <!-- Bottom Sheet -->
-    <div class="bottom-sheet" id="bottomSheet">
-      <div class="close-bottom-sheet">
-        <button onclick="closeBottomSheet()">X</button>
-      </div>
-      <div class="bottom-sheet-content">
-        <h3>Thông tin chi tiết</h3>
-        <p>Tổng số ổ gà hiện tại: <%= totalHole %></p>
-        <p>Tổng số vết nứt hiện tại: <%= totalCrack %></p>
-        <p>Tổng số đoạn đường đang bảo trì: <%= totalMaintain %></p>
-      </div>
+    /* Định dạng nội dung bên trong bottom sheet */
+    .bottom-sheet-content {
+      font-size: 16px;
+      font-family: 'Be Vietnam Pro', sans-serif;
+      color: #333;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Nút mở bottom sheet -->
+  <div class="open-bottom-sheet">Detail</div>
+
+  <!-- Bottom Sheet -->
+  <div class="bottom-sheet" id="bottomSheet">
+    <div class="close-bottom-sheet">
+      <button onclick="closeBottomSheet()">X</button>
+    </div>
+    <div class="bottom-sheet-content">
+      <h3>Thông tin chi tiết</h3>
+      <p>Tổng số ổ gà hiện tại: <%= totalHole %>
+      </p>
+      <p>Tổng số vết nứt hiện tại: <%= totalCrack %>
+      </p>
+      <p>Tổng số đoạn đường đang bảo trì: <%= totalMaintain %>
+      </p>
+    </div>
+  </div>
+
+  <!-- Container chứa thông tin về tình trạng đường -->
+  <div class="info-container">
+
+    <div class="item">
+      <img src="/images/fix_road.png" alt="Maintain">
+      <span>Maintain</span>
     </div>
 
-    <!-- Container chứa thông tin về tình trạng đường -->
-    <div class="info-container">
-      
-      <div class="item">
-        <img src="/images/fix_road.png" alt="Maintain">
-        <span>Maintain</span>
-      </div>
-      
-      <div class="item">
-        <img src="/images/small_hole.png" alt="Small Hole">
-        <span>Small Hole</span>
-      </div>
-      <div class="item">
-        <img src="/images/large_hole.png" alt="Large Hole">
-        <span>Large Hole</span>
-      </div>
-      <div class="item">
-        <img src="/images/small_crack.png" alt="Small Crack">
-        <span>Small Crack</span>
-      </div>
-      <div class="item">
-        <img src="/images/large_crack.png" alt="Large Crack">
-        <span>Large Crack</span>
-      </div>
+    <div class="item">
+      <img src="/images/small_hole.png" alt="Small Hole">
+      <span>Small Hole</span>
     </div>
+    <div class="item">
+      <img src="/images/large_hole.png" alt="Large Hole">
+      <span>Large Hole</span>
+    </div>
+    <div class="item">
+      <img src="/images/small_crack.png" alt="Small Crack">
+      <span>Small Crack</span>
+    </div>
+    <div class="item">
+      <img src="/images/large_crack.png" alt="Large Crack">
+      <span>Large Crack</span>
+    </div>
+  </div>
 
-    <div id="map"></div>
+  <div id="map"></div>
 
-    <script>
+  <script>
 
-      // Mở bottom sheet
-      document.querySelector('.open-bottom-sheet').addEventListener('click', function() {
-        document.getElementById('bottomSheet').style.bottom = '0';
+    // Mở bottom sheet
+    document.querySelector('.open-bottom-sheet').addEventListener('click', function () {
+      document.getElementById('bottomSheet').style.bottom = '0';
+    });
+
+    // Đóng bottom sheet
+    function closeBottomSheet() {
+      document.getElementById('bottomSheet').style.bottom = '-100%';
+    }
+
+    let map;
+    const holesUrl = `<%= holesUrl %>`;
+    const cracksUrl = "<%= cracksUrl %>";
+    const maintainRoadUrl = "<%= maintainRoadUrl %>";
+
+    // Các đường dẫn tới hình ảnh icon
+    const largeCrackIcon = "/images/large_crack.png";
+    const largeHoleIcon = "/images/large_hole.png";
+    const smallCrackIcon = "/images/small_crack.png";
+    const smallHoleIcon = "/images/small_hole.png";
+    const fixRoadIcon = "/images/fix_road.png";
+
+    function initMap() {
+      // Khởi tạo bản đồ tại vị trí trung tâm
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 16.047079, lng: 108.206230 }, // Đà Nẵng
+        zoom: 12,
+        mapTypeId: 'terrain',
+        styles: [
+          {
+            featureType: "poi", // Loại bỏ các điểm quan tâm như trường học, bệnh viện
+            elementType: "all",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "road", // Chỉ giữ lại đường giao thông
+            elementType: "labels.icon", // Loại bỏ icon trên đường
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "transit", // Loại bỏ các điểm dừng phương tiện công cộng
+            elementType: "all",
+            stylers: [{ visibility: "off" }]
+          }
+        ] // Hiển thị chế độ Terrain
       });
 
-      // Đóng bottom sheet
-      function closeBottomSheet() {
-        document.getElementById('bottomSheet').style.bottom = '-100%';
-      }
+      // Lấy danh sách các tọa độ từ API và vẽ lên bản đồ
+      fetchMarkers(holesUrl, "hole");
+      fetchMarkers(cracksUrl, "crack");
+      fetchMaintainRoads(maintainRoadUrl); // Lấy dữ liệu bảo trì đường và vẽ polyline
+    }
 
-      let map;
-      const holesUrl = `<%= holesUrl %>`;
-      const cracksUrl = "<%= cracksUrl %>";
-      const maintainRoadUrl = "<%= maintainRoadUrl %>";
+    function fetchMarkers(url, type) {
+      fetch(url)
+        .then((response) => response.json())
+        .then((data) => {
+          if (data && data.data) {
+            data.data.forEach((item) => {
+              const locationString = item.location;
+              const latLng = extractLatLngForHoleCrack(locationString);
 
-      // Các đường dẫn tới hình ảnh icon
-      const largeCrackIcon = "/images/large_crack.png";
-      const largeHoleIcon = "/images/large_hole.png";
-      const smallCrackIcon = "/images/small_crack.png";
-      const smallHoleIcon = "/images/small_hole.png";
-      const fixRoadIcon = "/images/fix_road.png"; 
+              if (latLng) {
+                const markerIcon = getMarkerIcon(type, item.description);
 
-      function initMap() {
-        // Khởi tạo bản đồ tại vị trí trung tâm
-        map = new google.maps.Map(document.getElementById("map"), {
-          center: { lat: 16.047079, lng: 108.206230 }, // Đà Nẵng
-          zoom: 12,
-          mapTypeId: 'terrain', // Hiển thị chế độ Terrain
+                const marker = new google.maps.Marker({
+                  position: latLng,
+                  map: map,
+                  title: type === "hole" ? `${item.description} Hole` : `${item.description} Crack`,
+                  icon: markerIcon,
+                });
+              }
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching markers:", error);
         });
-    
-        // Lấy danh sách các tọa độ từ API và vẽ lên bản đồ
-        fetchMarkers(holesUrl, "hole");
-        fetchMarkers(cracksUrl, "crack");
-        fetchMaintainRoads(maintainRoadUrl); // Lấy dữ liệu bảo trì đường và vẽ polyline
+    }
+
+    function fetchMaintainRoads(url) {
+      fetch(url)
+        .then((response) => response.json())
+        .then((data) => {
+          if (data && data.data) {
+            data.data.forEach((item) => {
+              const locationA = extractLatLng(item.locationA);
+              const locationB = extractLatLng(item.locationB);
+
+              if (locationA && locationB) {
+                // Vẽ đường polyline giữa locationA và locationB
+                const roadPath = new google.maps.Polyline({
+                  path: [locationA, locationB],
+                  geodesic: true,
+                  strokeColor: "#FF0000",
+                  strokeOpacity: 1.0,
+                  strokeWeight: 2,
+                  map: map
+                });
+
+                // Tính tọa độ trung bình giữa locationA và locationB
+                const midPoint = {
+                  lat: (locationA.lat + locationB.lat) / 2,
+                  lng: (locationA.lng + locationB.lng) / 2
+                };
+
+                // Thêm một icon duy nhất ở giữa locationA và locationB
+                new google.maps.Marker({
+                  position: midPoint,
+                  map: map,
+                  icon: {
+                    url: fixRoadIcon,
+                    scaledSize: new google.maps.Size(32, 32) // Kích thước icon
+                  },
+                  title: `Day Maintain: ${item.dateMaintain} - Start: ${(new Date(item.createdAt)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} - End: ${(new Date(item.updatedAt)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
+
+                });
+              }
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching road maintenance data:", error);
+        });
+    }
+
+    function extractLatLngForHoleCrack(locationString) {
+      const regex = /latitude:([0-9.\-]+),\s*longitude:([0-9.\-]+)/;
+      const match = locationString.match(regex);
+
+      if (match) {
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[2]);
+        return { lat, lng };
       }
-    
-      function fetchMarkers(url, type) {
-        fetch(url)
-          .then((response) => response.json())
-          .then((data) => {
-            if (data && data.data) {
-              data.data.forEach((item) => {
-                const locationString = item.location;
-                const latLng = extractLatLngForHoleCrack(locationString);
-    
-                if (latLng) {
-                  const markerIcon = getMarkerIcon(type, item.description);
-    
-                  const marker = new google.maps.Marker({
-                    position: latLng,
-                    map: map,
-                    title: type === "hole" ? `${item.description} Hole` : `${item.description} Crack`,
-                    icon: markerIcon,
-                  });
-                }
-              });
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching markers:", error);
-          });
+      return null;
+    }
+
+    function extractLatLng(locationString) {
+      // Ví dụ của locationString: "LatLng(16.070293, 108.151578)"
+      const regex = /LatLng\(([0-9.\-]+),\s*([0-9.\-]+)\)/;
+      const match = locationString.match(regex);
+
+      if (match) {
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[2]);
+        return { lat, lng };
       }
-    
-      function fetchMaintainRoads(url) {
-        fetch(url)
-          .then((response) => response.json())
-          .then((data) => {
-            if (data && data.data) {
-              data.data.forEach((item) => {
-                const locationA = extractLatLng(item.locationA);
-                const locationB = extractLatLng(item.locationB);
-      
-                if (locationA && locationB) {
-                  // Vẽ đường polyline giữa locationA và locationB
-                  const roadPath = new google.maps.Polyline({
-                    path: [locationA, locationB],
-                    geodesic: true,
-                    strokeColor: "#FF0000",
-                    strokeOpacity: 1.0,
-                    strokeWeight: 2,
-                    map: map
-                  });
-      
-                  // Tính tọa độ trung bình giữa locationA và locationB
-                  const midPoint = {
-                    lat: (locationA.lat + locationB.lat) / 2,
-                    lng: (locationA.lng + locationB.lng) / 2
-                  };
-      
-                  // Thêm một icon duy nhất ở giữa locationA và locationB
-                  new google.maps.Marker({
-                    position: midPoint,
-                    map: map,
-                    icon: {
-                      url: fixRoadIcon,
-                      scaledSize: new google.maps.Size(32, 32) // Kích thước icon
-                    },
-                    title: `Day Maintain: ${item.dateMaintain} - Start: ${(new Date(item.createdAt)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} - End: ${(new Date(item.updatedAt)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
-                    
-                  });
-                }
-              });
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching road maintenance data:", error);
-          });
+      return null;
+    }
+
+
+    function getMarkerIcon(type, size) {
+      let iconUrl = "";
+      let iconSize = { width: 32, height: 32 }; // Kích thước mặc định
+
+      if (type === "hole") {
+        if (size === "Large") {
+          iconUrl = largeHoleIcon;
+          iconSize = { width: 40, height: 40 }; // Kích thước cho hole lớn
+        } else {
+          iconUrl = smallHoleIcon;
+          iconSize = { width: 30, height: 30 }; // Kích thước cho hole nhỏ
+        }
+      } else if (type === "crack") {
+        if (size === "Large") {
+          iconUrl = largeCrackIcon;
+          iconSize = { width: 40, height: 40 }; // Kích thước cho crack lớn
+        } else {
+          iconUrl = smallCrackIcon;
+          iconSize = { width: 30, height: 30 }; // Kích thước cho crack nhỏ
+        }
       }
 
-      function extractLatLngForHoleCrack(locationString) {
-        const regex = /latitude:([0-9.\-]+),\s*longitude:([0-9.\-]+)/;
-        const match = locationString.match(regex);
-    
-        if (match) {
-          const lat = parseFloat(match[1]);
-          const lng = parseFloat(match[2]);
-          return { lat, lng };
-        }
-        return null;
-      }
+      return {
+        url: iconUrl,
+        scaledSize: new google.maps.Size(iconSize.width, iconSize.height), // Kích thước đã chỉnh
+      };
+    }
+  </script>
 
-      function extractLatLng(locationString) {
-        // Ví dụ của locationString: "LatLng(16.070293, 108.151578)"
-        const regex = /LatLng\(([0-9.\-]+),\s*([0-9.\-]+)\)/;
-        const match = locationString.match(regex);
-      
-        if (match) {
-          const lat = parseFloat(match[1]);
-          const lng = parseFloat(match[2]);
-          return { lat, lng };
-        }
-        return null;
-      }
-      
-    
-      function getMarkerIcon(type, size) {
-        let iconUrl = "";
-        let iconSize = { width: 32, height: 32 }; // Kích thước mặc định
-    
-        if (type === "hole") {
-          if (size === "Large") {
-            iconUrl = largeHoleIcon;
-            iconSize = { width: 40, height: 40 }; // Kích thước cho hole lớn
-          } else {
-            iconUrl = smallHoleIcon;
-            iconSize = { width: 30, height: 30 }; // Kích thước cho hole nhỏ
-          }
-        } else if (type === "crack") {
-          if (size === "Large") {
-            iconUrl = largeCrackIcon;
-            iconSize = { width: 40, height: 40 }; // Kích thước cho crack lớn
-          } else {
-            iconUrl = smallCrackIcon;
-            iconSize = { width: 30, height: 30 }; // Kích thước cho crack nhỏ
-          }
-        }
-    
-        return {
-          url: iconUrl,
-          scaledSize: new google.maps.Size(iconSize.width, iconSize.height), // Kích thước đã chỉnh
-        };
-      }
-    </script>
-    
-    <!-- Gắn API key của Google Maps -->
-    <script async defer
-      src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&callback=initMap">
-    </script>
-  </body>
+  <!-- Gắn API key của Google Maps -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&callback=initMap">
+  </script>
+</body>
+
 </html>
