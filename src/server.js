@@ -116,6 +116,47 @@ app.post("/api/detection/create", upload.single("image"), async (req, res) => {
   }
 });
 
+app.post("/api/detection/create-for-jetson", upload.single("image"), async (req, res) => {
+  try {
+
+    const image = {
+      data: req.file.buffer,
+      contentType: req.file.mimetype,
+    };
+
+    const { typeDetection, location, userId, description} = req.body;
+    console.log(req.body)
+    const { latitude, longitude } = getLocationCoordinates(location);
+    const address = await getAddressFromCoordinates(latitude, longitude);
+    if (
+      !typeDetection ||
+      !location ||
+      !image ||
+      !userId ||
+      !address ||
+      !description
+    ) {
+      return res.status(200).json({
+        status: "ERR",
+        message: "The input is required",
+      });
+    }
+
+    const response = await DetectionService.createDetectionForJetson(
+      typeDetection,
+      location,
+      image,
+      userId,
+      address,
+      description
+    );
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ status: "error", message: "Internal server error" });
+  }
+});
+
 io.on('connection', (socket) => {
   console.log('have user connect:>> ', socket.id);
   io.emit('newUserConnect', 'Have user connect');

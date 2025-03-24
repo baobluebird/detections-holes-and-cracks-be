@@ -6,21 +6,14 @@ const roadSchema = new mongoose.Schema(
         destinationName: { type: String, required: true },
         locationA: { type: String, required: true},
         locationB: { type: String, required: true },
+        startDate: { type: String, required: true },
+        endDate: { type: String, required: true },
         dateMaintain: {type: Number, required: true},
     },
     {
         timestamps: true 
     }
 );
-
-roadSchema.pre('save', function (next) {
-    if (this.isNew) { 
-        const currentDate = new Date();
-        const futureDate = new Date(currentDate.getTime() + this.dateMaintain * 24 * 60 * 60 * 1000); 
-        this.updatedAt = futureDate; 
-    }
-    next();
-});
 
 const Road = mongoose.model("Road", roadSchema);
 module.exports = Road;

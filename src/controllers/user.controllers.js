@@ -3,7 +3,7 @@ const JwtService = require('../services/JwtService');
 
 const createUser = async (req, res) => {
     try {
-        const { name, date, email, password, confirmPassword, phone } = req.body
+        const { name, date, email, password, confirmPassword, phone, googleId  } = req.body
         const reg = /^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/
         const isCheckEmail = reg.test(email)
         if (!name ||!date || !email || !password || !confirmPassword || !phone) {
@@ -33,6 +33,27 @@ const createUser = async (req, res) => {
     }
 }
 
+const createUserWithGoogle = async (req, res) => {
+    try {
+      const { name, email, googleId } = req.body;
+  
+      if (!name || !email || !googleId) {
+        return res.status(200).json({
+          status: 'ERR',
+          message: 'Email and Google ID are required',
+        });
+      }
+
+      const user = req.body
+      const response = await UserService.createUserWithGoogle(user)
+      console.log('sign up',email)
+      return res.status(200).json(response)
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  };
+  
+
 const loginUser = async (req, res) => {
     try {
         const {email, password} = req.body
@@ -58,6 +79,29 @@ const loginUser = async (req, res) => {
         })
     }
 }
+
+const loginUserWithGoogle = async (req, res) => {
+    try {
+      const { email, googleId } = req.body;
+  
+      if (!email || !googleId) {
+        return res.status(200).json({
+          status: 'ERR',
+          message: 'Missing email or Google ID',
+        });
+      }
+  
+      const response = await UserService.loginUserWithGoogle(req.body);
+      return res.status(200).json(response);
+  
+    } catch (error) {
+      return res.status(500).json({
+        status: 'ERR',
+        message: error.message,
+      });
+    }
+  };
+  
 
 const logoutUser = async (req, res) => {
     try {
@@ -273,7 +317,9 @@ const getDataSendHelp = async (req, res) => {
 
 module.exports = {
     createUser,
+    createUserWithGoogle,
     loginUser,
+    loginUserWithGoogle,
     logoutUser,
     updateUser,
     changePassword,

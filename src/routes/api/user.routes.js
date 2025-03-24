@@ -5,7 +5,9 @@ const userController = require('../../controllers/user.controllers');
 const {  authUserMiddleware  } = require('../../middleware/authMiddleware');
 
 router.post('/sign-up', userController.createUser);
+router.post('/signup-google', userController.createUserWithGoogle);
 router.post('/sign-in', userController.loginUser);
+router.post('/signin-google', userController.loginUserWithGoogle);
 router.post('/log-out', userController.logoutUser);
 
 router.post('/update-user/:id',authUserMiddleware, userController.updateUser);

@@ -40,6 +40,39 @@ const createUser = async (data) => {
     });
   };
 
+  const createUserWithGoogle = async (data) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { email, name, googleId } = data;
+  
+        const checkUser = await User.findOne({ email });
+        if (checkUser) {
+          return reject({
+            status: 'OK',
+            message: 'User already exists',
+          });
+        }
+  
+        await User.create({
+          name,
+          email,
+          password: '',
+          phone: '',
+          date: '',
+          googleId,
+        });
+  
+        return resolve({
+          status: 'OK',
+          message: 'User created with Google Sign-In',
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+  
+
 const loginUser = async (data) => {
     return new Promise(async (resolve, reject) => {
     try {
@@ -81,6 +114,48 @@ const loginUser = async (data) => {
       }
     });
   };
+
+  const loginUserWithGoogle = async (data) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { email, googleId } = data;
+  
+        const checkUser = await User.findOne({ email });
+  
+        if (!checkUser) {
+          return reject({
+            status: 'ERR',
+            message: 'User not found',
+          });
+        }
+  
+        if (checkUser.googleId !== googleId) {
+          return resolve({
+            status: 'ERR',
+            message: 'Google ID mismatch',
+          });
+        }
+
+        const access_token = await generalAccessToken({
+            id: checkUser._id,
+            isAdmin: checkUser.isAdmin,
+          });
+  
+          resolve({
+            userId: checkUser._id,
+            name: checkUser.name,
+            isAdmin: checkUser.isAdmin,
+            access_token,
+            status: 'OK',
+            message: 'Login successfully'
+        })
+  
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+  
 
 const getId = async (token) => {
     return new Promise(async (resolve, reject) => {
@@ -320,7 +395,9 @@ const getDataSendHelp = async () => {
 
 module.exports = {
     createUser,
+    createUserWithGoogle,
     loginUser,
+    loginUserWithGoogle,
     getId,
     updateUser,
     getDetailsUser,

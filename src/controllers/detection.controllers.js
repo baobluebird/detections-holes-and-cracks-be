@@ -91,8 +91,9 @@ const deleteCrack = async (req, res) => {
 
 const createMaintainRoad = async (req, res) => {
     try {
-        const {locationA, locationB, date} = req.body;
-        const response = await DetectionServices.createMaintainRoad(locationA, locationB, date )
+        const {locationA, locationB, startDate, endDate, totalDays} = req.body;
+        console.log(req.body)
+        const response = await DetectionServices.createMaintainRoad(locationA, locationB, startDate, endDate, totalDays)
         return res.status(200).json(response)
     } catch (e) {
         return res.status(404).json({

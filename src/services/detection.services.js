@@ -3,6 +3,8 @@ const Crack = require("../models/crack.model");
 const Road = require("../models/road.model");
 const dotenv = require("dotenv");
 const axios = require('axios');
+const moment = require("moment-timezone");
+
 dotenv.config();
 const path = require("path");
 const fs = require("fs");
@@ -23,6 +25,7 @@ const createDetection = async (
   address
 ) => {
   return new Promise(async (resolve, reject) => {
+    console.log("create by phone")
     try {
       if (typeDetection === "Ổ gà") {
 
@@ -62,7 +65,7 @@ const createDetection = async (
         hole.image = response.data.image_url;
         hole.description = response.data.result;
         await hole.save();
-
+        console.log(hole)
         resolve({
           image: response.data.image_url,
           data: hole,
@@ -113,6 +116,62 @@ const createDetection = async (
           message: "Create crack successfully",
         });
       }
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const createDetectionForJetson = async (typeDetection, location, image, userId, address, description) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let detection;
+      let model;
+      let prefix;
+
+      if (typeDetection === "Ổ gà") {
+        model = Hole;
+        prefix = "hole";
+      } else if (typeDetection === "Vết nứt") {
+        model = Crack;
+        prefix = "crack";
+      } else {
+        reject({ status: "ERR", message: "Invalid typeDetection" });
+        return;
+      }
+
+      detection = await model.create({
+        name: typeDetection,
+        user: userId,
+        description: description,
+        location: location,
+        address: address,
+      });
+
+      const uploadsDir = path.join(__dirname, '../uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir);
+      }
+
+      const imagePath = path.join(uploadsDir, `${detection._id}.jpg`);
+      fs.writeFileSync(imagePath, image.data);
+
+      const savedImage = await cloudinary.uploader.upload(imagePath, {
+        public_id: `${prefix}_${detection._id}`,
+        resource_type: "image"
+      });
+
+      fs.unlinkSync(imagePath);
+
+      detection.image = savedImage.secure_url;
+      await detection.save();
+      console.log(detection)
+      resolve({
+        image: savedImage.secure_url,
+        data: detection,
+        status: "OK",
+        message: `Create ${typeDetection} successfully`,
+      });
     } catch (error) {
       reject(error);
     }
@@ -172,9 +231,16 @@ const getListHoles = () => {
     try {
       const holes = await Hole.find();
       const count = await Hole.countDocuments();
+
+      const formattedHoles = holes.map((hole) => ({
+        ...hole._doc,
+        createdAt: moment(hole.createdAt).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss"),
+        updatedAt: moment(hole.updatedAt).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss"),
+      }));
+
       resolve({
         total: count,
-        data: holes,
+        data: formattedHoles,
         status: "OK",
         message: "Get list holes successfully",
       });
@@ -403,7 +469,7 @@ async function getAddressFromCoordinates(latitude, longitude) {
   }
 }
 
-const createMaintainRoad = (locationA, locationB, date) => {
+const createMaintainRoad = (locationA, locationB, startDate, endDate, totalDays) => {
   return new Promise(async (resolve, reject) => {
     try {
       const { latitudeA, longitudeA, latitudeB, longitudeB} = await getLocationCoordinates(locationA, locationB);
@@ -416,7 +482,9 @@ const createMaintainRoad = (locationA, locationB, date) => {
         destinationName: addressB,
         locationA: locationA,
         locationB: locationB,
-        dateMaintain: date
+        startDate: startDate,
+        endDate: endDate,
+        dateMaintain: totalDays
       }); 
       if(createMaintain)    {
         resolve({
@@ -487,6 +555,7 @@ const deleteMaintain =  (id) => {
 
 module.exports = {
   createDetection,
+  createDetectionForJetson,
   getLatLongDetection,
   getListHoles,
   getListCracks,
