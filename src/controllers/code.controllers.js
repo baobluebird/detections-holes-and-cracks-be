@@ -4,12 +4,14 @@ const JwtService = require('../services/JwtService');
 const createCode = async (req, res) => {
     try {
         const email = req.body.email
+        console.log(req.body.email)
         if(!email){
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The email is required'
             })
         }
+        
         const response = await CodeServices.createCode(email)
         return res.status(200).json(response)
     } catch (e) {

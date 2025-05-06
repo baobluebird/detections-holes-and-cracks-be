@@ -1,4 +1,5 @@
 const Code = require("../models/code.model");
+const EmailService = require("./EmailService");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const User = require('../models/user.model')

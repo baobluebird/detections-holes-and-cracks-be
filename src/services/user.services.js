@@ -9,6 +9,17 @@ dotenv.config();
 const axios = require("axios");
 
 
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+
+const handleError = (error, defaultMessage) => {
+    console.error(`Error: ${error.message || error}`);
+    return {
+        status: 'ERR',
+        message: error.message || defaultMessage
+    };
+};
+
 const createUser = async (data) => {
     return new Promise(async (resolve, reject) => {
     try {
@@ -180,98 +191,184 @@ const getId = async (token) => {
     });
   }
 
-const updateUser = async (userId, data) => {
-    return new Promise(async (resolve, reject) => {
+  const updateUser = async (userId, name, date, phone, password, oldPassword) => {
     try {
-        const response = await User.updateUser(userId, data)
-        
-        if (!response) {
-            reject ({
+        // Kiểm tra userId
+        if (!isValidObjectId(userId)) {
+            return {
                 status: 'ERR',
-                message: 'Update user failed'
-            })
+                message: 'Invalid user ID'
+            };
         }
-        else if (response === 'Email is already in use by another user') {
-            reject ({
+
+        // Tạo đối tượng cập nhật từ các tham số
+        const updateData = {};
+        if (name !== null) updateData.name = name;
+        if (date !== null) updateData.date = date;
+        if (phone !== null) updateData.phone = phone;
+        if (password !== null) updateData.password = password;
+
+        // Kiểm tra xem có trường nào được cung cấp không
+        if (Object.keys(updateData).length === 0) {
+            return {
                 status: 'ERR',
-                message: 'Email is already in use by another user'
-            })
+                message: 'No fields provided for update'
+            };
         }
-        else if (response === 'Phone number is already in use by another user') {
-            reject ({
+
+        // Nếu cập nhật password, yêu cầu oldPassword
+        if (updateData.password) {
+            if (!oldPassword) {
+                return {
+                    status: 'ERR',
+                    message: 'Old password is required to update password'
+                };
+            }
+
+            if (updateData.password.length < 6) {
+                return {
+                    status: 'ERR',
+                    message: 'New password must be at least 6 characters'
+                };
+            }
+
+            const user = await User.findById(userId);
+            if (!user) {
+                return {
+                    status: 'ERR',
+                    message: 'User not found'
+                };
+            }
+
+            // Kiểm tra mật khẩu cũ
+            const isMatch = await bcrypt.compare(oldPassword, user.password);
+            if (!isMatch) {
+                return {
+                    status: 'ERR',
+                    message: 'Old password is incorrect'
+                };
+            }
+
+            // Kiểm tra mật khẩu mới có khác mật khẩu cũ không
+            const isSameAsOld = await bcrypt.compare(updateData.password, user.password);
+            if (isSameAsOld) {
+                return {
+                    status: 'ERR',
+                    message: 'New password must be different from the old password'
+                };
+            }
+
+            // Băm mật khẩu mới
+            updateData.password = await bcrypt.hash(updateData.password, 10);
+        }
+
+        // Kiểm tra name không được rỗng nếu được cung cấp
+        if (updateData.name && updateData.name.trim() === '') {
+            return {
                 status: 'ERR',
-                message: 'Phone number is already in use by another user'
-            })
+                message: 'Name cannot be empty'
+            };
         }
-        else {
-            resolve({
-                user: response,
-                status: 'OK',
-                message: 'Update user successfully'
-            })
+
+        // Cập nhật người dùng
+        const user = await User.findByIdAndUpdate(
+            userId,
+            { $set: updateData },
+            { new: true, runValidators: true }
+        );
+
+        if (!user) {
+            return {
+                status: 'ERR',
+                message: 'User not found or update failed'
+            };
         }
+
+        return {
+            status: 'OK',
+            message: 'Update user successfully',
+            user
+        };
     } catch (error) {
-        reject(error);
-      }
-    });
-  };
+        // Kiểm tra lỗi cụ thể từ MongoDB
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyValue)[0];
+            return {
+                status: 'ERR',
+                message: `${field.charAt(0).toUpperCase() + field.slice(1)} is already in use`
+            };
+        }
+        return handleError(error, 'Update user failed');
+    }
+};
 
 const getDetailsUser = async (userId) => {
-    return new Promise(async (resolve, reject) => {
-    try {
-        const response = await User.getDetailsUser(userId)
-        if (!response) {
-            reject ({
-                status: 'ERR',
-                message: 'Get user failed'
-            })
-        }
-        else {
-            resolve({
-                user: response,
-                status: 'OK',
-                message: 'Get user successfully'
-            })
-        }
-    } catch (error) {
-        reject(error);
+  try {
+      if (!isValidObjectId(userId)) {
+          return {
+              status: 'ERR',
+              message: 'Invalid user ID'
+          };
       }
-    });
-  };
 
-const changePassword = async (userId, password) => {
-    return new Promise(async (resolve, reject) => {
-    try {
-        const response = await User.changePassword(userId, password)
-        if (!response) {
-            reject ({
-                status: 'ERR',
-                message: 'Change password failed'
-            })
-        }
-        else if(response === 'Old password is incorrect'){
-            reject ({
-                status: 'ERR',
-                message: 'Old password is incorrect'
-            })
-        }
-        else if(response === 'New password must be different from the old password') {
-            reject ({
-                status: 'ERR',
-                message: 'New password must be different from the old password'
-            })
-        }
-        else {
-            resolve({
-                status: 'OK',
-                message: 'Change password successfully'
-            })
-        }
-    } catch (error) {
-        reject(error);
+      const user = await User.findById(userId);
+      if (!user) {
+          return {
+              status: 'ERR',
+              message: 'User not found'
+          };
       }
-    });
-  };
+
+      return {
+          status: 'OK',
+          message: 'Get user successfully',
+          user : user
+      };
+  } catch (error) {
+      return handleError(error, 'Get user failed');
+  }
+};
+
+
+const changePassword = async (userId, newPassword) => {
+  try {
+      // Kiểm tra userId
+      if (!isValidObjectId(userId)) {
+          return {
+              status: 'ERR',
+              message: 'Invalid user ID'
+          };
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+          return {
+              status: 'ERR',
+              message: 'User not found'
+          };
+      }
+
+
+      const isMatch = await bcrypt.compare(newPassword, user.password);
+      if (!isMatch) {
+          return {
+              status: 'ERR',
+              message: 'Old password is incorrect'
+          };
+      }
+
+      // Cập nhật mật khẩu mới
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await User.update(userId, { password: hashedPassword });
+
+      return {
+          status: 'OK',
+          message: 'Change password successfully'
+      };
+  } catch (error) {
+      return handleError(error, 'Change password failed');
+  }
+};
 
 const decodeToken = async (token) => {
     return new Promise(async (resolve, reject) => {

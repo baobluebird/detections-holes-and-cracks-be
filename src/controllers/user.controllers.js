@@ -120,14 +120,14 @@ const logoutUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const userId = req.params.id;
-        const data = req.body;
-        if(!userId){
+        const {name, date, phone, password, oldPassword} = req.body
+        if(!name || !date || !phone || !userId){
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
             })
         }
-        const response = await UserService.updateUser(userId, data)
+        const response = await UserService.updateUser(userId, name, date, phone, password, oldPassword)
         return res.status(200).json(response)
     } catch (e) {
         return res.status(404).json({ 

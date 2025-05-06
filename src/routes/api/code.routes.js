@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const codeController = require('../controllers/code.controllers');
-const {  authUserMiddleware  } = require('../middleware/authMiddleware');
+const codeController = require('../../controllers/code.controllers');
+const {  authUserMiddleware  } = require('../../middleware/authMiddleware');
 
 router.post('/create-code', codeController.createCode);
 router.post('/resend-code', codeController.resendCode);

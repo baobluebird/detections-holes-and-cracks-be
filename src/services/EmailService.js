@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 dotenv.config()
+
 const sendEmail = async (email,code) => {
 const transporter = nodemailer.createTransport({
     service: 'gmail',
