@@ -40,15 +40,15 @@ const resendCode = async (req, res) => {
 
 const verifyCode = async (req, res) => {
     try {
-        const id = req.params.id
+        const codeId = req.params.id
         const {code} = req.body
-        if( !id || !code){
+        if( !codeId || !code){
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
             })
         }
-        const response = await CodeServices.verifyCode(id, code)
+        const response = await CodeServices.verifyCode(codeId, code)
         return res.status(200).json(response)
     } catch (e) {
         return res.status(404).json({

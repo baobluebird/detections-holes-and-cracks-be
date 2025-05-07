@@ -7,6 +7,8 @@ const Emergency = require('../models/emergency.model');
 const dotenv = require("dotenv");
 dotenv.config();
 const axios = require("axios");
+const mongoose = require('mongoose');
+
 
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);

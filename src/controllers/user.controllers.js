@@ -121,7 +121,8 @@ const updateUser = async (req, res) => {
     try {
         const userId = req.params.id;
         const {name, date, phone, password, oldPassword} = req.body
-        if(!name || !date || !phone || !userId){
+        console.log(req.body)
+        if(!name && !date && !phone && !userId){
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
