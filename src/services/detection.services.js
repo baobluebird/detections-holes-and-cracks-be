@@ -10,12 +10,53 @@ const path = require("path");
 const fs = require("fs");
 const geolib = require('geolib');
 const cloudinary = require("cloudinary");
+
 cloudinary.config({
   cloud_name: process.env.API_NAME_CLOUDINARY,
   api_key: process.env.API_KEY_CLOUDDINARY,
   api_secret: process.env.API_SECRET_CLOUDDINARY,
 });
 
+function getLocationCoordinates(locationStringA, locationStringB) {
+  const startIndexA = locationStringA.indexOf("(");
+  const endIndexA = locationStringA.indexOf(")");
+
+  const startIndexB = locationStringB.indexOf("(");
+  const endIndexB = locationStringB.indexOf(")");
+  
+  if (startIndexA !== -1 && endIndexA !== -1 ) {
+    const latLngStringA = locationStringA.substring(startIndexA + 1, endIndexA);
+    const latLngPartsA = latLngStringA.split(", ");
+
+    const latLngStringB = locationStringB.substring(startIndexB + 1, endIndexB);
+    const latLngPartsB = latLngStringB.split(", ");
+
+    const latitudeA = parseFloat(latLngPartsA[0]);
+    const longitudeA = parseFloat(latLngPartsA[1]);
+
+    const latitudeB = parseFloat(latLngPartsB[0]);
+    const longitudeB = parseFloat(latLngPartsB[1]);
+
+    return { latitudeA, longitudeA, latitudeB, longitudeB };
+  } else {
+    console.log("Invalid location string format");
+    return null;
+  }
+}
+
+async function getAddressFromCoordinates(latitude, longitude) {
+  try {
+    const apiKey = process.env.API_GOOGLE_KEY;
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
+
+    const response = await axios.get(url);
+    const address = response.data.results[0].formatted_address;
+    return address;
+  } catch (error) {
+    console.error("Error fetching address:", error.message);
+    return null;
+  }
+}
 
 const createDetection = async (
   typeDetection,
@@ -178,6 +219,36 @@ const createDetectionForJetson = async (typeDetection, location, image, userId, 
   });
 };
 
+const createMaintainRoad = (locationA, locationB, startDate, endDate, totalDays) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { latitudeA, longitudeA, latitudeB, longitudeB} = await getLocationCoordinates(locationA, locationB);
+
+      const addressA = await getAddressFromCoordinates(latitudeA, longitudeA);
+      const addressB = await getAddressFromCoordinates(latitudeB, longitudeB);
+
+      const createMaintain = await Road.create({
+        sourceName: addressA,
+        destinationName: addressB,
+        locationA: locationA,
+        locationB: locationB,
+        startDate: startDate,
+        endDate: endDate,
+        dateMaintain: totalDays
+      }); 
+      if(createMaintain)    {
+        resolve({
+          status: "OK",
+          data: createMaintain,
+          message: "Create maintain road successfully",
+        });
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 const getLatLongDetection = () => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -218,7 +289,7 @@ const getLatLongDetection = () => {
         latLongSmallCrack: formattedLatLongSmallCrack,
         latLongLargeCrack: formattedLatLongLargeCrack,
         status: "OK",
-        message: "Create crack successfully",
+        message: "Get LatLong Detection successfully",
       });
     } catch (error) {
       reject(error);
@@ -386,6 +457,149 @@ const getListForTracking = (coordinates) => {
   });
 };
 
+const getMaintainRoad =  () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const count = await Road.countDocuments();
+      const data = await Road.find()
+      if(data)    {
+        resolve({
+          status: "OK",
+          total: count,
+          data: data,
+          message: "Get data maintain road successfully",
+        });
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const getMaintainRoadForMap = () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const currentDate = new Date();
+      const data = await Road.find({
+        endDate: { $gte: currentDate.toISOString().split('T')[0] }
+      });
+      
+      resolve({
+        status: "OK",
+        data: data,
+        message: "Get data maintain road successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const updateHole = (id, data, image) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const check = await Hole.findById(id);
+      if(!check){
+        reject({
+          status: "ERR",
+          message: "Hole not found",
+        });
+      }
+
+      if (image) {
+        const uploadsDir = path.join(__dirname, '../uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir);
+        }
+
+        const timestamp = Date.now();
+        const fileName = `${id}_${timestamp}.jpg`;
+
+        const imagePath = path.join(uploadsDir, fileName);
+        fs.writeFileSync(imagePath, image.data);
+
+        const savedImage = await cloudinary.uploader.upload(imagePath, {
+          public_id: `hole_${id}_${timestamp}_updated`,
+          resource_type: "image"
+        });
+        fs.unlinkSync(imagePath);
+        data.image = savedImage.secure_url;
+      }
+
+      await Hole.findByIdAndUpdate(id, data);
+      resolve({
+        status: "OK",
+        message: "Update hole successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+const updateCrack = (id, data, image) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const check = await Crack.findById(id);
+      if(!check){
+        reject({
+          status: "ERR",
+          message: "Crack not found",
+        });
+      }
+      
+      if (image) {
+        const uploadsDir = path.join(__dirname, '../uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir);
+        }
+
+        const timestamp = Date.now();
+        const fileName = `${id}_${timestamp}.jpg`;
+
+        const imagePath = path.join(uploadsDir, fileName);
+        fs.writeFileSync(imagePath, image.data);
+
+        const savedImage = await cloudinary.uploader.upload(imagePath, {
+          public_id: `crack_${id}_${timestamp}_updated`,
+          resource_type: "image"
+        });
+        fs.unlinkSync(imagePath);
+        data.image = savedImage.secure_url;
+      }
+
+      await Crack.findByIdAndUpdate(id, data);
+      resolve({
+        status: "OK",
+        message: "Update crack successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+const updateMaintain = (id, data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const check = await Road.findById(id);
+      if(!check){
+        reject({
+          status: "ERR",
+          message: "Maintain road not found",
+        });
+      }
+      await Road.findByIdAndUpdate(id, data);
+      resolve({
+        status: "OK",
+        message: "Update maintain road successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 const deleteHole = (id) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -428,114 +642,6 @@ const deleteCrack = (id) => {
   });
 };
 
-function getLocationCoordinates(locationStringA, locationStringB) {
-  const startIndexA = locationStringA.indexOf("(");
-  const endIndexA = locationStringA.indexOf(")");
-
-  const startIndexB = locationStringB.indexOf("(");
-  const endIndexB = locationStringB.indexOf(")");
-  
-  if (startIndexA !== -1 && endIndexA !== -1 ) {
-    const latLngStringA = locationStringA.substring(startIndexA + 1, endIndexA);
-    const latLngPartsA = latLngStringA.split(", ");
-
-    const latLngStringB = locationStringB.substring(startIndexB + 1, endIndexB);
-    const latLngPartsB = latLngStringB.split(", ");
-
-    const latitudeA = parseFloat(latLngPartsA[0]);
-    const longitudeA = parseFloat(latLngPartsA[1]);
-
-    const latitudeB = parseFloat(latLngPartsB[0]);
-    const longitudeB = parseFloat(latLngPartsB[1]);
-
-    return { latitudeA, longitudeA, latitudeB, longitudeB };
-  } else {
-    console.log("Invalid location string format");
-    return null;
-  }
-}
-
-async function getAddressFromCoordinates(latitude, longitude) {
-  try {
-    const apiKey = process.env.API_GOOGLE_KEY;
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
-
-    const response = await axios.get(url);
-    const address = response.data.results[0].formatted_address;
-    return address;
-  } catch (error) {
-    console.error("Error fetching address:", error.message);
-    return null;
-  }
-}
-
-const createMaintainRoad = (locationA, locationB, startDate, endDate, totalDays) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const { latitudeA, longitudeA, latitudeB, longitudeB} = await getLocationCoordinates(locationA, locationB);
-
-      const addressA = await getAddressFromCoordinates(latitudeA, longitudeA);
-      const addressB = await getAddressFromCoordinates(latitudeB, longitudeB);
-
-      const createMaintain = await Road.create({
-        sourceName: addressA,
-        destinationName: addressB,
-        locationA: locationA,
-        locationB: locationB,
-        startDate: startDate,
-        endDate: endDate,
-        dateMaintain: totalDays
-      }); 
-      if(createMaintain)    {
-        resolve({
-          status: "OK",
-          data: createMaintain,
-          message: "Create maintain road successfully",
-        });
-      }
-    } catch (error) {
-      reject(error);
-    }
-  });
-};
-
-const getMaintainRoad =  () => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const count = await Road.countDocuments();
-      const data = await Road.find()
-      if(data)    {
-        resolve({
-          status: "OK",
-          total: count,
-          data: data,
-          message: "Get data maintain road successfully",
-        });
-      }
-    } catch (error) {
-      reject(error);
-    }
-  });
-};
-
-const getMaintainRoadForMap =  () => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      
-      const data = await Road.find().select('locationA locationB -_id');
-      if(data)    {
-        resolve({
-          status: "OK",
-          data: data,
-          message: "Get data maintain road successfully",
-        });
-      }
-    } catch (error) {
-      reject(error);
-    }
-  });
-};
-
 const deleteMaintain =  (id) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -556,16 +662,23 @@ const deleteMaintain =  (id) => {
 module.exports = {
   createDetection,
   createDetectionForJetson,
+  createMaintainRoad,
+
   getLatLongDetection,
   getListHoles,
   getListCracks,
   getDetailHole,
   getDetailCrack,
   getListForTracking,
-  deleteHole,
-  deleteCrack,
-  createMaintainRoad,
   getMaintainRoad,
   getMaintainRoadForMap,
-  deleteMaintain
+
+  updateHole,
+  updateCrack,
+  updateMaintain,
+
+  deleteHole,
+  deleteCrack,
+  deleteMaintain,
+
 };

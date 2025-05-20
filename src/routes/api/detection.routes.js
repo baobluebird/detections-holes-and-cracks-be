@@ -1,25 +1,34 @@
 const express = require('express');
 const router = express.Router();
 const detectionController = require('../../controllers/detection.controllers');
-const {  authUserMiddleware  } = require('../../middleware/authMiddleware');
+const { authUserMiddleware } = require('../../middleware/authMiddleware');
 
-router.get('/get-detection', detectionController.getLatLongDetection);
+module.exports = (upload) => {
+  router.get('/get-detection', detectionController.getLatLongDetection);
+  router.get('/get-detail-hole/:id', detectionController.getDetailHole);
+  router.get('/get-detail-crack/:id', detectionController.getDetailCrack);
 
-router.get('/get-detail-hole/:id', detectionController.getDetailHole);
-router.get('/get-detail-crack/:id', detectionController.getDetailCrack);
+  router.get('/get-list-holes', detectionController.getListHoles);
+  router.get('/get-list-crack', detectionController.getListCracks);
 
-router.get('/get-list-holes', detectionController.getListHoles);
-router.get('/get-list-crack', detectionController.getListCracks);
+  router.post('/update-holes/:id', upload.single('image'), detectionController.updateHole);
+  router.post('/update-crack/:id', upload.single('image'), detectionController.updateCrack);
+  router.post('/update-maintain/:id', detectionController.updateMaintain);
 
-router.delete('/delete-hole/:id', detectionController.deleteHole);
-router.delete('/delete-crack/:id', detectionController.deleteCrack);
+  router.delete('/delete-hole/:id', detectionController.deleteHole);
+  router.delete('/delete-crack/:id', detectionController.deleteCrack);
+  router.delete('/delete-maintain/:id', detectionController.deleteMaintain);
 
-router.post('/create-maintain-road', detectionController.createMaintainRoad)
-router.get('/get-maintain-road', detectionController.getMaintainRoad)
-router.get('/get-maintain-road-for-map', detectionController.getMaintainRoadForMap)
-router.delete('/delete-maintain/:id', detectionController.deleteMaintain)
+  router.get('/get-maintain-road', detectionController.getMaintainRoad);
+  router.get('/get-maintain-road-for-map', detectionController.getMaintainRoadForMap);
 
-router.post('/post-location-tracking', detectionController.getListForTracking)
+  router.post('/post-location-tracking', detectionController.getListForTracking);
 
-router.get('/map', detectionController.getMap)
-module.exports = router;  
+  router.post('/create', upload.single('image'), detectionController.createDetection);
+  router.post('/create-for-jetson', upload.single('image'), detectionController.createDetectionForJetson);
+  router.post('/create-maintain-road', detectionController.createMaintainRoad);
+
+ router.get('/map', detectionController.getMap);
+
+  return router;
+};

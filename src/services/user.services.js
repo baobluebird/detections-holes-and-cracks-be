@@ -8,7 +8,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 const axios = require("axios");
 const mongoose = require('mongoose');
-
+const moment = require('moment');
 
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -321,10 +321,16 @@ const getDetailsUser = async (userId) => {
           };
       }
 
+      // Format date sang DD/MM/YYYY
+      const formattedDate = moment(user.date).format('DD/MM/YYYY');
+
       return {
           status: 'OK',
           message: 'Get user successfully',
-          user : user
+          user: {
+              ...user._doc,
+              date: formattedDate
+          }
       };
   } catch (error) {
       return handleError(error, 'Get user failed');

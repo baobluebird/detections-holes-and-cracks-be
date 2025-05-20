@@ -1,5 +1,99 @@
 const DetectionServices = require('../services/detection.services')
 
+const axios = require('axios');
+
+function getLocationCoordinates(locationString) {
+  const startIndex = locationString.indexOf("(");
+  const endIndex = locationString.indexOf(")");
+
+  if (startIndex !== -1 && endIndex !== -1) {
+    const latLngString = locationString.substring(startIndex + 1, endIndex);
+    const latLngParts = latLngString.split(", ");
+    const latitude = parseFloat(latLngParts[0].split(":")[1]);
+    const longitude = parseFloat(latLngParts[1].split(":")[1]);
+    return { latitude, longitude };
+  } else {
+    console.log("Invalid location string format");
+    return null;
+  }
+}
+
+async function getAddressFromCoordinates(latitude, longitude) {
+  try {
+    const apiKey = process.env.API_GOOGLE_KEY;
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
+    const response = await axios.get(url);
+    const address = response.data.results[0].formatted_address;
+    return address;
+  } catch (error) {
+    console.error("Error fetching address:", error.message);
+    return null;
+  }
+}
+
+const createDetection = async (req, res) => {
+  try {
+    const image = {
+      data: req.file.buffer,
+      contentType: req.file.mimetype,
+    };
+    const { typeDetection, location, userId } = req.body;
+    const { latitude, longitude } = getLocationCoordinates(location);
+    const address = await getAddressFromCoordinates(latitude, longitude);
+
+    if (!typeDetection || !location || !image || !userId || !address) {
+      return res.status(200).json({
+        status: "ERR",
+        message: "The input is required",
+      });
+    }
+
+    const response = await DetectionServices.createDetection(
+      typeDetection,
+      location,
+      image,
+      userId,
+      address
+    );
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ status: "error", message: "Internal server error" });
+  }
+};
+
+const createDetectionForJetson = async (req, res) => {
+  try {
+    const image = {
+      data: req.file.buffer,
+      contentType: req.file.mimetype,
+    };
+    const { typeDetection, location, userId, description } = req.body;
+    const { latitude, longitude } = getLocationCoordinates(location);
+    const address = await getAddressFromCoordinates(latitude, longitude);
+
+    if (!typeDetection || !location || !image || !userId || !address || !description) {
+      return res.status(200).json({
+        status: "ERR",
+        message: "The input is required",
+      });
+    }
+
+    const response = await DetectionServices.createDetectionForJetson(
+      typeDetection,
+      location,
+      image,
+      userId,
+      address,
+      description
+    );
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ status: "error", message: "Internal server error" });
+  }
+};
+
 const getLatLongDetection = async (req, res)  =>  {
     try {
         const response = await DetectionServices.getLatLongDetection()
@@ -64,6 +158,61 @@ const getListForTracking = async (req, res) => {
         return res.status(404).json({
             message: e
         })
+    }
+}
+
+const updateHole = async (req, res) => {
+  try {
+    const image = req.file
+      ? {
+          data: req.file.buffer,
+          contentType: req.file.mimetype,
+        }
+      : null;
+
+    const { location, address, description } = req.body;
+    const data = { location, address, description };
+
+    const response = await DetectionServices.updateHole(req.params.id, data, image);
+    return res.status(200).json(response);
+  } catch (e) {
+    return res.status(404).json({
+      message: e.message || e,
+    });
+  }
+};
+
+const updateCrack = async (req, res) => {
+  try {
+    const image = req.file
+      ? {
+          data: req.file.buffer,
+          contentType: req.file.mimetype,
+        }
+      : null;
+    const { location, address, description } = req.body;
+    const data = { location, address, description };
+
+    const response = await DetectionServices.updateCrack(req.params.id, data, image);
+    return res.status(200).json(response);
+  } catch (e) {
+    return res.status(404).json({
+      message: e.message || e,
+    });
+  }
+};
+
+
+const updateMaintain = async (req, res) => {
+    try {
+        const { sourceName, destinationName, locationA, locationB, startDate, endDate } = req.body;
+        const data = { sourceName, destinationName, locationA, locationB, startDate, endDate };
+        const response = await DetectionServices.updateMaintain(req.params.id, data);
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || e,
+        });
     }
 }
 
@@ -161,17 +310,29 @@ const getMap = async (req,res) =>{
 }
 
 module.exports = {
+    createDetection,
+    createDetectionForJetson,
+    createMaintainRoad,
+
     getLatLongDetection,
     getListHoles,
     getListCracks,
-    getDetailHole,
-    getDetailCrack,
     getListForTracking,
-    deleteHole,
-    deleteCrack,
-    createMaintainRoad,
     getMaintainRoad,
     getMaintainRoadForMap,
+
+    getMap,
+
+    getDetailHole,
+    getDetailCrack,
+    
+    updateHole,
+    updateCrack,
+    updateMaintain,
+
+    deleteHole,
+    deleteCrack,
     deleteMaintain,
-    getMap
+
+    
 }

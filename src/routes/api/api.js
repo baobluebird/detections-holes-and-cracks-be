@@ -2,10 +2,10 @@
 const UserRouter = require('./user.routes')
 const CodeRouter = require('./code.routes')
 const DetectionRouter = require('./detection.routes')
-const routes = (app) => {
+const routes = (app, upload) => {
     app.use('/api/user', UserRouter)
     app.use('/api/code', CodeRouter)
-    app.use('/api/detection', DetectionRouter)
+    app.use('/api/detection', DetectionRouter(upload))
 }
 
 module.exports = routes
