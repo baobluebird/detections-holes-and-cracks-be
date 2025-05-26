@@ -1,0 +1,594 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cracks Data</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .topnav {
+            background-color: #333;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .topnav a {
+            float: left;
+            color: #f2f2f2;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+            font-size: 17px;
+        }
+
+        .topnav a:hover {
+            background-color: #ddd;
+            color: black;
+        }
+
+        .topnav a.active {
+            background-color: #04AA6D;
+            color: white;
+        }
+
+        .content {
+            padding-top: 60px;
+        }
+
+        .title {
+            font-size: 25px;
+            font-weight: 600;
+            padding-bottom: 10px;
+        }
+
+        .table-container {
+            padding: 15px 20px;
+            overflow-y: auto;
+            margin-top: 20px;
+            max-height: 70vh;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            background-color: #333;
+            color: white;
+            z-index: 1;
+        }
+
+        tr:hover {
+            background-color: rgb(180, 178, 178);
+        }
+
+        .data-summary {
+            padding: 0 20px;
+        }
+
+        .image-preview {
+            max-width: 100px;
+            height: auto;
+        }
+
+        .notification {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background-color: #04AA6D;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        .action-button {
+            padding: 5px 10px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .delete-button {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .update-button {
+            background-color: #0074f8;
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        .modal-content label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+
+        .modal-content input,
+        .modal-content textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .modal-content button {
+            padding: 8px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal-content .save-button {
+            background-color: #04AA6D;
+            color: white;
+        }
+
+        .modal-content .cancel-button {
+            background-color: #f44336;
+            color: white;
+        }
+
+        @media (max-width: 600px) {
+
+            .table-container,
+            .data-summary {
+                padding: 10px;
+            }
+
+            table,
+            thead,
+            tbody,
+            th,
+            td,
+            tr {
+                display: block;
+            }
+
+            th,
+            td {
+                text-align: right;
+            }
+
+            td::before {
+                content: attr(data-label);
+                float: left;
+                font-weight: bold;
+            }
+
+            td {
+                text-align: right;
+                display: block;
+                width: 100%;
+            }
+
+            .image-preview {
+                max-width: 50px;
+            }
+
+            .notification {
+                top: 60px;
+                right: 10px;
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topnav">
+        <a href="/home/data-hole">Holes Data</a>
+        <a class="active" href="/home/data-crack">Cracks Data</a>
+        <a href="/home/data-maintain">Maintain Road Data</a>
+        <a href="/home/data-send-help">Home Data Send Help</a>
+        <a href="/home/map">Map</a>
+    </div>
+    <div class="content">
+        <div class="data-summary"><strong>Total Cracks:</strong> <span id="totalCrack">
+                <%= totalCrack%>
+            </span></div>
+
+        <!-- Bảng hiển thị Cracks -->
+        <div class="table-container" id="CrackContainer">
+            <div class="title">Cracks Data</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Location</th>
+                        <th>Address</th>
+                        <th>Description</th>
+                        <th>Created At</th>
+                        <th>Image</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="crackTableBody">
+                    <% listCrack.forEach(function(crack) { %>
+                        <tr data-id="<%= crack._id %>">
+                            <td data-label="Name">
+                                <%= crack.name %>
+                            </td>
+                            <td data-label="Location">
+                                <%= crack.location %>
+                            </td>
+                            <td data-label="Address">
+                                <%= crack.address %>
+                            </td>
+                            <td data-label="Description">
+                                <%= crack.description || 'N/A' %>
+                            </td>
+                            <td data-label="Created At">
+                                <%= new Date(crack.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+                                    %>
+                            </td>
+                            <td data-label="Image">
+                                <% if (crack.image) { %><img src="<%= crack.image %>" alt="Crack Image"
+                                        class="image-preview">
+                                    <% } else { %>N/A<% } %>
+                            </td>
+                            <td data-label="Actions">
+                                <button class="action-button update-button" data-id="<%= crack._id %>"
+                                    data-location="<%= encodeURIComponent(JSON.stringify(crack.location)) %>"
+                                    data-address="<%= encodeURIComponent(JSON.stringify(crack.address)) %>"
+                                    data-description="<%= encodeURIComponent(JSON.stringify(crack.description || '')) %>">Update</button>
+                                <button class="action-button delete-button" data-id="<%= crack._id %>">Delete</button>
+                            </td>
+                        </tr>
+                        <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Container cho thông báo -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Modal cho Update -->
+    <div id="updateModal" class="modal">
+        <div class="modal-content">
+            <h2>Update Crack</h2>
+            <form id="updateForm">
+                <label for="updateLocation">Location</label>
+                <input type="text" id="updateLocation" name="location" required>
+
+                <label for="updateAddress">Address</label>
+                <input type="text" id="updateAddress" name="address" required>
+
+                <label for="updateDescription">Description</label>
+                <textarea id="updateDescription" name="description"></textarea>
+
+                <label for="updateImage">Image</label>
+                <input type="file" id="updateImage" name="image" accept="image/*">
+
+                <button type="submit" class="save-button">Save</button>
+                <button type="button" class="cancel-button" onclick="closeUpdateModal()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var socket = io();
+            let currentCrackId = null;
+
+            // Hàm hiển thị thông báo
+            function showNotification(message) {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.classList.add('show');
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+
+            // Hàm cuộn đến dòng mới hoặc cập nhật
+            function scrollToNewRow(containerId, row) {
+                const tableContainer = document.querySelector(`#${containerId}`);
+                const rowRect = row.getBoundingClientRect();
+                const containerRect = tableContainer.getBoundingClientRect();
+                tableContainer.scrollTop += rowRect.top - containerRect.top - (containerRect.height / 2) + (rowRect.height / 2);
+            }
+
+            // Mở modal Update
+            function openUpdateModal(id, location, address, description) {
+                try {
+                    currentCrackId = id;
+                    document.getElementById('updateLocation').value = location || '';
+                    document.getElementById('updateAddress').value = address || '';
+                    document.getElementById('updateDescription').value = description || '';
+                    document.getElementById('updateImage').value = ''; // Reset file input
+                    document.getElementById('updateModal').style.display = 'flex';
+                } catch (error) {
+                    console.error('Error in openUpdateModal:', error);
+                    showNotification('Error loading update form');
+                }
+            }
+
+            // Đóng modal Update
+            function closeUpdateModal() {
+                document.getElementById('updateModal').style.display = 'none';
+                currentCrackId = null;
+            }
+
+            // Xử lý form Update
+            document.getElementById('updateForm').addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const formData = new FormData();
+                const location = document.getElementById('updateLocation').value;
+                const address = document.getElementById('updateAddress').value;
+                const description = document.getElementById('updateDescription').value;
+                const imageFile = document.getElementById('updateImage').files[0];
+
+                formData.append('location', location);
+                formData.append('address', address);
+                formData.append('description', description);
+                if (imageFile) {
+                    formData.append('image', imageFile);
+                }
+
+                try {
+                    const response = await fetch(`/api/detection/update-crack/${currentCrackId}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                        showNotification(result.message);
+                        closeUpdateModal();
+
+                        // Cập nhật giao diện ngay lập tức
+                        const row = document.querySelector(`tr[data-id="${currentCrackId}"]`);
+                        if (row) {
+                            row.cells[1].textContent = location || 'N/A';
+                            row.cells[2].textContent = address || 'N/A';
+                            row.cells[3].textContent = description || 'N/A';
+                            if (result.image) { // Giả sử API trả về URL ảnh mới
+                                row.cells[5].innerHTML = `<img src="${result.image}" alt="Crack Image" class="image-preview">`;
+                            }
+                            const updateButton = row.querySelector('.update-button');
+                            if (updateButton) {
+                                updateButton.setAttribute('data-location', encodeURIComponent(JSON.stringify(location || '')));
+                                updateButton.setAttribute('data-address', encodeURIComponent(JSON.stringify(address || '')));
+                                updateButton.setAttribute('data-description', encodeURIComponent(JSON.stringify(description || '')));
+                            }
+                            row.classList.add('updated');
+                            setTimeout(() => row.classList.remove('updated'), 100);
+                            scrollToNewRow('CrackContainer', row);
+                        }
+                    } else {
+                        showNotification(result.message || 'Failed to update crack');
+                    }
+                } catch (error) {
+                    showNotification('Error updating crack');
+                    console.error('Error:', error);
+                }
+            });
+
+            // Xử lý xóa Crack
+            async function deleteCrack(id) {
+                if (!confirm('Are you sure you want to delete this crack?')) return;
+                try {
+                    const response = await fetch(`/api/detection/delete-crack/${id}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                        showNotification(result.message);
+                        socket.emit('deleteCrack', { id });
+                    } else {
+                        showNotification(result.message || 'Failed to delete crack');
+                    }
+                } catch (error) {
+                    showNotification('Error deleting crack');
+                    console.error('Error:', error);
+                }
+            }
+
+            // Gắn sự kiện cho các nút Delete và Update
+            function attachButtonEvents() {
+                document.querySelectorAll('.delete-button').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const id = button.getAttribute('data-id');
+                        deleteCrack(id);
+                    });
+                });
+
+                document.querySelectorAll('.update-button').forEach(button => {
+                    button.addEventListener('click', () => {
+                        try {
+                            const id = button.getAttribute('data-id');
+                            const location = JSON.parse(decodeURIComponent(button.getAttribute('data-location')));
+                            const address = JSON.parse(decodeURIComponent(button.getAttribute('data-address')));
+                            const description = JSON.parse(decodeURIComponent(button.getAttribute('data-description')));
+                            openUpdateModal(id, location, address, description);
+                        } catch (error) {
+                            console.error('Error parsing JSON:', error, {
+                                location: button.getAttribute('data-location'),
+                                address: button.getAttribute('data-address'),
+                                description: button.getAttribute('data-description')
+                            });
+                            showNotification('Error loading update form');
+                        }
+                    });
+                });
+            }
+
+            // Gọi hàm gắn sự kiện ban đầu
+            attachButtonEvents();
+
+            // Xử lý sự kiện kết nối socket mới
+            socket.on('newUserConnect', function (data) {
+                console.log('New user connected:', data);
+            });
+
+            // Xử lý sự kiện thêm Crack mới
+            socket.on('newDataAdded', function (data) {
+                if (data.name !== 'Vết nứt') return; // Chỉ xử lý Cracks
+
+                const tableBodyId = 'crackTableBody';
+                const totalId = 'totalCrack';
+                const containerId = 'CrackContainer';
+
+                // Tạo HTML cho dòng mới
+                let html = `<tr data-id="${data._id}">`;
+                html += `<td data-label="Name">${data.name}</td>`;
+                html += `<td data-label="Location">${data.location}</td>`;
+                html += `<td data-label="Address">${data.address}</td>`;
+                html += `<td data-label="Description">${data.description || 'N/A'}</td>`;
+                html += `<td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>`;
+                html += `<td data-label="Image">`;
+                if (data.image) {
+                    html += `<img src="${data.image}" alt="${data.name} Image" class="image-preview">`;
+                } else {
+                    html += 'N/A';
+                }
+                html += `</td>`;
+                html += `<td data-label="Actions">`;
+                html += `<button class="action-button update-button" data-id="${data._id}" data-location="${encodeURIComponent(JSON.stringify(data.location))}" data-address="${encodeURIComponent(JSON.stringify(data.address))}" data-description="${encodeURIComponent(JSON.stringify(data.description || ''))}">Update</button>`;
+                html += `<button class="action-button delete-button" data-id="${data._id}">Delete</button>`;
+                html += `</td>`;
+                html += `</tr>`;
+
+                // Thêm dòng mới vào bảng
+                const tableBody = document.querySelector(`#${tableBodyId}`);
+                tableBody.insertAdjacentHTML('beforeend', html);
+
+                // Lấy dòng mới được thêm
+                const newRow = tableBody.lastElementChild;
+
+                // Gắn sự kiện cho các nút mới
+                attachButtonEvents();
+
+                // Cập nhật tổng số
+                const currentTotal = parseInt(document.getElementById(totalId).innerText);
+                document.getElementById(totalId).innerText = currentTotal + 1;
+
+                // Hiển thị thông báo
+                showNotification(`Đã thêm Vết nứt mới tại ${data.address}`);
+
+                // Cuộn đến dòng mới
+                scrollToNewRow(containerId, newRow);
+            });
+
+            // Xử lý sự kiện xóa Crack
+            socket.on('crackDeleted', function (data) {
+                const row = document.querySelector(`tr[data-id="${data.id}"]`);
+                if (row) {
+                    row.remove();
+                    const currentTotal = parseInt(document.getElementById('totalCrack').innerText);
+                    document.getElementById('totalCrack').innerText = currentTotal - 1;
+                    showNotification('Crack deleted successfully');
+                }
+            });
+
+            // Xử lý sự kiện cập nhật Crack
+            socket.on('crackUpdated', function (data) {
+                console.log('Received crackUpdated at:', new Date().toISOString(), 'Data:', JSON.stringify(data, null, 2));
+                const row = document.querySelector(`tr[data-id="${data.id}"]`);
+                if (row) {
+                    // Tạo HTML mới cho hàng
+                    let html = `
+            <td data-label="Name">${data.name || 'Vết nứt'}</td>
+            <td data-label="Location">${data.location || 'N/A'}</td>
+            <td data-label="Address">${data.address || 'N/A'}</td>
+            <td data-label="Description">${data.description || 'N/A'}</td>
+            <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+            <td data-label="Image">${data.image ? `<img src="${data.image}" alt="Crack Image" class="image-preview">` : 'N/A'}</td>
+            <td data-label="Actions">
+                <button class="action-button update-button" 
+                    data-id="${data.id}" 
+                    data-location="${encodeURIComponent(JSON.stringify(data.location || ''))}" 
+                    data-address="${encodeURIComponent(JSON.stringify(data.address || ''))}" 
+                    data-description="${encodeURIComponent(JSON.stringify(data.description || ''))}">Update</button>
+                <button class="action-button delete-button" data-id="${data.id}">Delete</button>
+            </td>`;
+                    // Thay thế hàng cũ bằng hàng mới
+                    const newRow = document.createElement('tr');
+                    newRow.setAttribute('data-id', data.id);
+                    newRow.innerHTML = html;
+                    row.parentNode.replaceChild(newRow, row);
+                    // Gắn lại sự kiện cho các nút mới
+                    attachButtonEvents();
+                    console.log('After update:', {
+                        location: newRow.cells[1].textContent,
+                        address: newRow.cells[2].textContent,
+                        description: newRow.cells[3].textContent,
+                        image: newRow.cells[5].innerHTML
+                    });
+                    showNotification('Crack updated successfully');
+                    scrollToNewRow('CrackContainer', newRow);
+                } else {
+                    console.error('Row not found for update:', data);
+                    showNotification('Error: Updated crack not found in table');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

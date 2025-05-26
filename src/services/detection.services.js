@@ -1,6 +1,7 @@
 const Hole = require("../models/hole.model");
 const Crack = require("../models/crack.model");
 const Road = require("../models/road.model");
+const Damage = require("../models/damage.model");
 const dotenv = require("dotenv");
 const axios = require('axios');
 const moment = require("moment-timezone");
@@ -67,6 +68,7 @@ const createDetection = async (
 ) => {
   return new Promise(async (resolve, reject) => {
     console.log("create by phone")
+    const io = global.io;
     try {
       if (typeDetection === "Ổ gà") {
 
@@ -107,6 +109,7 @@ const createDetection = async (
         hole.description = response.data.result;
         await hole.save();
         console.log(hole)
+        io.emit("newDataAdded", hole);
         resolve({
           image: response.data.image_url,
           data: hole,
@@ -149,7 +152,7 @@ const createDetection = async (
         crack.description = response.data.result;
 
         await crack.save();
-
+        io.emit("newDataAdded", crack);
         resolve({
           image: response.data.image_url,
           data: crack,
@@ -164,6 +167,7 @@ const createDetection = async (
 };
 
 const createDetectionForJetson = async (typeDetection, location, image, userId, address, description) => {
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
       let detection;
@@ -207,6 +211,7 @@ const createDetectionForJetson = async (typeDetection, location, image, userId, 
       detection.image = savedImage.secure_url;
       await detection.save();
       console.log(detection)
+      io.emit("newDataAdded", detection)
       resolve({
         image: savedImage.secure_url,
         data: detection,
@@ -241,6 +246,39 @@ const createMaintainRoad = (locationA, locationB, startDate, endDate, totalDays)
           status: "OK",
           data: createMaintain,
           message: "Create maintain road successfully",
+        });
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const createDamageRoad = (name, locationA, locationB) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+
+      console.log(locationA, locationB)
+
+      const { latitudeA, longitudeA, latitudeB, longitudeB} = await getLocationCoordinates(locationA, locationB);
+
+      console.log(latitudeA, longitudeA, latitudeB, longitudeB)
+
+      const addressA = await getAddressFromCoordinates(latitudeA, longitudeA);
+      const addressB = await getAddressFromCoordinates(latitudeB, longitudeB);
+      console.log(addressA, addressB)
+      const createDamage = await Damage.create({
+        name: name,
+        sourceName: addressA,
+        destinationName: addressB,
+        locationA: locationA,
+        locationB: locationB,
+      }); 
+      if(createDamage)    {
+        resolve({
+          status: "OK",
+          data: createDamage,
+          message: "Create damage road successfully",
         });
       }
     } catch (error) {
@@ -375,7 +413,14 @@ const getListForTracking = (coordinates) => {
   return new Promise(async (resolve, reject) => {
     try {
       const latLongLargeHole = await Hole.find({ description: { $in: ["Large"] } }).select("location");
-      const latLongMaintainRoad = await Road.find().select("locationA");
+
+      const currentDate = new Date();
+      const latLongMaintainRoad = await Road.find({
+        endDate: { $gte: currentDate.toISOString().split('T')[0] }
+      }).select("locationA");
+
+      const latLongDamageRoad = await Damage.find();
+
       const formatLatLng = (latLngObjects) => {
         return latLngObjects
           .map((obj) => {
@@ -389,7 +434,22 @@ const getListForTracking = (coordinates) => {
           .filter(Boolean);
       };
 
+
+
       const formatLatLngMaintainRoad = (latLngObjects) => {
+        return latLngObjects
+          .map((obj) => {
+            const matches = obj.locationA.match(/LatLng\((.*), (.*)\)/);
+            if (matches && matches.length === 3) {
+              return { latitude: parseFloat(matches[1]), longitude: parseFloat(matches[2]) };
+            } else {
+              return null; 
+            }
+          })
+          .filter(Boolean);
+      };
+
+      const formatLatLngDamageRoad = (latLngObjects) => {
         return latLngObjects
           .map((obj) => {
             const matches = obj.locationA.match(/LatLng\((.*), (.*)\)/);
@@ -406,6 +466,8 @@ const getListForTracking = (coordinates) => {
       const formattedLatLongLargeHole = formatLatLng(latLongLargeHole);
 
       const formattedLatLongMaintainRoad= formatLatLngMaintainRoad(latLongMaintainRoad);
+
+      const formattedLatLongDamageRoad= formatLatLngDamageRoad(latLongDamageRoad);
       
       const allKnownCoordinatesHole = [
         ...formattedLatLongLargeHole,
@@ -415,8 +477,13 @@ const getListForTracking = (coordinates) => {
         ...formattedLatLongMaintainRoad,
       ];
 
+      const allKnownCoordinatesDamageRoad = [
+        ...formattedLatLongDamageRoad,
+      ];
+
       const matchingCoordinatesHole = new Set();
       const matchingCoordinatesMaintainRoad = new Set();
+      const matchingCoordinatesDamageRoad = new Set();
 
 
       coordinates.forEach((coord) => {
@@ -437,18 +504,30 @@ const getListForTracking = (coordinates) => {
             { latitude: coord.latitude, longitude: coord.longitude },
             { latitude: knownCoord.latitude, longitude: knownCoord.longitude }
           );
-          if (distance <= 80) {
+          if (distance <= 50) {
             matchingCoordinatesMaintainRoad.add(JSON.stringify([knownCoord.latitude, knownCoord.longitude]));
           }
         });
       });
+      
+      coordinates.forEach((coord) => {
+        allKnownCoordinatesDamageRoad.forEach((knownCoord) => {
+          const distance = geolib.getDistance(
+            { latitude: coord.latitude, longitude: coord.longitude },
+            { latitude: knownCoord.latitude, longitude: knownCoord.longitude }
+          );
+          if (distance <= 50) {
+            matchingCoordinatesDamageRoad.add(JSON.stringify([knownCoord.latitude, knownCoord.longitude]));
+          }
+        });
+      });
 
-
-      console.log(Array.from(matchingCoordinatesMaintainRoad).map(JSON.parse))
+      
       resolve({
         status: "OK",
         matchingCoordinatesHole: Array.from(matchingCoordinatesHole).map(JSON.parse),
         matchingCoordinatesMaintainRoad: Array.from(matchingCoordinatesMaintainRoad).map(JSON.parse),
+        matchingCoordinatesDamageRoad: Array.from(matchingCoordinatesDamageRoad).map(JSON.parse),
         message: "Data for tracking response successfully",
       });
     } catch (error) {
@@ -495,7 +574,46 @@ const getMaintainRoadForMap = () => {
   });
 };
 
+const getDamageRoad =  () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const count = await Damage.countDocuments();
+      const data = await Damage.find()
+      if(data)    {
+        resolve({
+          status: "OK",
+          total: count,
+          data: data,
+          message: "Get data damage road successfully",
+        });
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const getDamageRoadForMap = () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const currentDate = new Date();
+      const data = await Damage.find({
+        endDate: { $gte: currentDate.toISOString().split('T')[0] }
+      });
+      
+      resolve({
+        status: "OK",
+        data: data,
+        message: "Get data damage road successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 const updateHole = (id, data, image) => {
+      const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Hole.findById(id);
@@ -527,6 +645,16 @@ const updateHole = (id, data, image) => {
       }
 
       await Hole.findByIdAndUpdate(id, data);
+      const updatedHole = await Hole.findById(id);
+      io.emit('holeUpdated', {
+            id: updatedHole._id.toString(),
+            name: updatedHole.name,
+            location: updatedHole.location,
+            address: updatedHole.address,
+            description: updatedHole.description,
+            image: updatedHole.image,
+            createdAt: updatedHole.createdAt
+        });
       resolve({
         status: "OK",
         message: "Update hole successfully",
@@ -538,6 +666,7 @@ const updateHole = (id, data, image) => {
 }
 
 const updateCrack = (id, data, image) => {
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Crack.findById(id);
@@ -569,6 +698,14 @@ const updateCrack = (id, data, image) => {
       }
 
       await Crack.findByIdAndUpdate(id, data);
+      const updateCrack = await Crack.findById(id);
+      io.emit('crackUpdated', {
+                id: updateCrack._id,
+                location: updateCrack.location,
+                address: updateCrack.address,
+                description: updateCrack.description,
+                image: updateCrack.image || null
+            });
       resolve({
         status: "OK",
         message: "Update crack successfully",
@@ -580,8 +717,11 @@ const updateCrack = (id, data, image) => {
 }
 
 const updateMaintain = (id, data) => {
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
+      console.log("update maintain")
+      console.log("Received update request:", { id, data });
       const check = await Road.findById(id);
       if(!check){
         reject({
@@ -590,6 +730,19 @@ const updateMaintain = (id, data) => {
         });
       }
       await Road.findByIdAndUpdate(id, data);
+      const updatedMaintain = await Road.findById(id);
+      io.emit('maintainUpdated', {
+        id: updatedMaintain._id.toString(),
+        sourceName: updatedMaintain.sourceName,  
+        destinationName: updatedMaintain.destinationName,
+        locationA: updatedMaintain.locationA,
+        locationB: updatedMaintain.locationB,
+        startDate: updatedMaintain.startDate,
+        endDate: updatedMaintain.endDate,
+        dateMaintain: updatedMaintain.dateMaintain,
+        createdAt: updatedMaintain.createdAt.toISOString(),
+        updatedAt: updatedMaintain.updatedAt.toISOString()
+        });
       resolve({
         status: "OK",
         message: "Update maintain road successfully",
@@ -600,7 +753,29 @@ const updateMaintain = (id, data) => {
   });
 }
 
+const updateDamage = (id, data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const check = await Damage.findById(id);
+      if(!check){
+        reject({
+          status: "ERR",
+          message: "Damage road not found",
+        });
+      }
+      await Damage.findByIdAndUpdate(id, data);
+      resolve({
+        status: "OK",
+        message: "Update damage road successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 const deleteHole = (id) => {
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Hole.findById(id);
@@ -611,6 +786,7 @@ const deleteHole = (id) => {
         });
       }
       await Hole.findByIdAndDelete(id);
+      io.emit('holeDeleted', { id: id });
       resolve({
         status: "OK",
         message: "Delete hole successfully",
@@ -622,6 +798,7 @@ const deleteHole = (id) => {
 };
 
 const deleteCrack = (id) => {
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Crack.findById(id);
@@ -632,6 +809,7 @@ const deleteCrack = (id) => {
         });
       }
       await Crack.findByIdAndDelete(id);
+      io.emit('crackDeleted', { id: id });
       resolve({
         status: "OK",
         message: "Delete crack successfully",
@@ -643,10 +821,12 @@ const deleteCrack = (id) => {
 };
 
 const deleteMaintain =  (id) => {
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
       
       await Road.findByIdAndDelete(id)
+      io.emit('maintainDeleted', { id });
         resolve({
           status: "OK",
           message: "Delete maintain road successfully",
@@ -658,11 +838,27 @@ const deleteMaintain =  (id) => {
   });
 };
 
+const deleteDamage =  (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      
+      await Damage.findByIdAndDelete(id)
+        resolve({
+          status: "OK",
+          message: "Delete damage road successfully",
+        });
+      
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
 
 module.exports = {
   createDetection,
   createDetectionForJetson,
   createMaintainRoad,
+  createDamageRoad,
 
   getLatLongDetection,
   getListHoles,
@@ -672,13 +868,19 @@ module.exports = {
   getListForTracking,
   getMaintainRoad,
   getMaintainRoadForMap,
+  getDamageRoad,
+  getDamageRoadForMap,
 
   updateHole,
   updateCrack,
   updateMaintain,
+  updateDamage,
 
   deleteHole,
   deleteCrack,
   deleteMaintain,
+  deleteDamage,
+
+
 
 };

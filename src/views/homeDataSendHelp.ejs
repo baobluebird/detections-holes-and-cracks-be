@@ -117,7 +117,11 @@
 <body>
 
     <div class="topnav">
+        <a href="/home/data-hole">Holes Data</a>
+        <a href="/home/data-crack">Cracks Data</a>
+        <a href="/home/data-maintain">Maintain Road Data</a>
         <a class="active" href="/home/data-send-help">Home Data Send Help</a>
+        <a href="/home/map">Map</a>
     </div>
     <div class="alert" id="alert">
         <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
@@ -129,50 +133,51 @@
             <div><strong>Total Send Recuse:</strong> <span id="dataCount">
                     <%= count %>
                 </span></div>
-                <table>
-                    <thead>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Id User</th>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Location</th>
+                        <th>Address</th>
+                        <th>Time Send</th>
+                        <th>Map</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% listData.forEach(function(data, index){ %>
                         <tr>
-                            <th>#</th>
-                            <th>Id User</th>
-                            <th>Name</th>
-                            <th>Phone</th>
-                            <th>Location</th>
-                            <th>Address</th>
-                            <th>Time Send</th>
-                            <th>Map</th>
+                            <td>
+                                <%= index + 1 %>
+                            </td>
+                            <td>
+                                <%= data.user %>
+                            </td>
+                            <td>
+                                <%= data.name %>
+                            </td>
+                            <td>
+                                <%= data.phone %>
+                            </td>
+                            <td>
+                                <%= data.location %>
+                            </td>
+                            <td>
+                                <%= data.address %>
+                            </td>
+                            <td>
+                                <%= new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+                                    %>
+                            </td>
+                            <td>
+                                <button onclick="openMap('<%= data.location %>')">View on Map</button>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        <% listData.forEach(function(data, index){ %> 
-                            <tr>
-                                <td>
-                                    <%= index + 1 %> 
-                                </td>
-                                <td>
-                                    <%= data.user %>
-                                </td>
-                                <td>
-                                    <%= data.name %>
-                                </td>
-                                <td>
-                                    <%= data.phone %>
-                                </td>
-                                <td>
-                                    <%= data.location %>
-                                </td>
-                                <td>
-                                    <%= data.address %>
-                                </td>
-                                <td>
-                                    <%= data.createdAt %>
-                                </td>
-                                <td>
-                                    <button onclick="openMap('<%= data.location %>')">View on Map</button>
-                                </td>
-                            </tr>
-                            <% }) %>
-                    </tbody>
-                </table>
+                        <% }) %>
+                </tbody>
+            </table>
     </div>
     <script src="/socket.io/socket.io.js"></script>
     <script>
