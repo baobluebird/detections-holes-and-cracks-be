@@ -33,7 +33,7 @@ module.exports = (upload) => {
   router.post('/create-maintain-road', detectionController.createMaintainRoad);
   router.post('/create-damage-road', detectionController.createDamageRoad);
 
- 
+  router.get('/search-list-detection',detectionController.searchListDetection);
 
   return router;
 };

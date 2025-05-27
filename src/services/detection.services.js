@@ -225,13 +225,13 @@ const createDetectionForJetson = async (typeDetection, location, image, userId, 
 };
 
 const createMaintainRoad = (locationA, locationB, startDate, endDate, totalDays) => {
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
       const { latitudeA, longitudeA, latitudeB, longitudeB} = await getLocationCoordinates(locationA, locationB);
 
       const addressA = await getAddressFromCoordinates(latitudeA, longitudeA);
       const addressB = await getAddressFromCoordinates(latitudeB, longitudeB);
-
       const createMaintain = await Road.create({
         sourceName: addressA,
         destinationName: addressB,
@@ -241,7 +241,20 @@ const createMaintainRoad = (locationA, locationB, startDate, endDate, totalDays)
         endDate: endDate,
         dateMaintain: totalDays
       }); 
+
       if(createMaintain)    {
+        io.emit('newMaintainRoad', {
+          id: createMaintain._id.toString(),
+          sourceName: createMaintain.sourceName,  
+          destinationName: createMaintain.destinationName,
+          locationA: createMaintain.locationA,
+          locationB: createMaintain.locationB,
+          startDate: createMaintain.startDate,
+          endDate: createMaintain.endDate,
+          dateMaintain: createMaintain.dateMaintain,
+          createdAt: createMaintain.createdAt.toISOString(),
+          updatedAt: createMaintain.updatedAt.toISOString()
+        });
         resolve({
           status: "OK",
           data: createMaintain,
@@ -255,18 +268,15 @@ const createMaintainRoad = (locationA, locationB, startDate, endDate, totalDays)
 };
 
 const createDamageRoad = (name, locationA, locationB) => {
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
 
-      console.log(locationA, locationB)
-
       const { latitudeA, longitudeA, latitudeB, longitudeB} = await getLocationCoordinates(locationA, locationB);
-
-      console.log(latitudeA, longitudeA, latitudeB, longitudeB)
 
       const addressA = await getAddressFromCoordinates(latitudeA, longitudeA);
       const addressB = await getAddressFromCoordinates(latitudeB, longitudeB);
-      console.log(addressA, addressB)
+ 
       const createDamage = await Damage.create({
         name: name,
         sourceName: addressA,
@@ -275,6 +285,16 @@ const createDamageRoad = (name, locationA, locationB) => {
         locationB: locationB,
       }); 
       if(createDamage)    {
+        io.emit('newDamageRoad', {
+          id: createDamage._id.toString(),
+          name: createDamage.name,
+          sourceName: createDamage.sourceName,  
+          destinationName: createDamage.destinationName,
+          locationA: createDamage.locationA,
+          locationB: createDamage.locationB,
+          createdAt: createDamage.createdAt.toISOString(),
+          updatedAt: createDamage.updatedAt.toISOString()
+        });
         resolve({
           status: "OK",
           data: createDamage,
@@ -562,7 +582,6 @@ const getMaintainRoadForMap = () => {
       const data = await Road.find({
         endDate: { $gte: currentDate.toISOString().split('T')[0] }
       });
-      
       resolve({
         status: "OK",
         data: data,
@@ -720,8 +739,6 @@ const updateMaintain = (id, data) => {
   const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
-      console.log("update maintain")
-      console.log("Received update request:", { id, data });
       const check = await Road.findById(id);
       if(!check){
         reject({
@@ -754,6 +771,7 @@ const updateMaintain = (id, data) => {
 }
 
 const updateDamage = (id, data) => {
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Damage.findById(id);
@@ -764,6 +782,17 @@ const updateDamage = (id, data) => {
         });
       }
       await Damage.findByIdAndUpdate(id, data);
+      const updatedDamage = await Damage.findById(id);
+      io.emit('damageUpdated', {
+        id: updatedDamage._id.toString(),
+        name: updatedDamage.name,
+        sourceName: updatedDamage.sourceName,  
+        destinationName: updatedDamage.destinationName,
+        locationA: updatedDamage.locationA,
+        locationB: updatedDamage.locationB,
+        createdAt: updatedDamage.createdAt.toISOString(),
+        updatedAt: updatedDamage.updatedAt.toISOString()
+      });
       resolve({
         status: "OK",
         message: "Update damage road successfully",
@@ -839,10 +868,12 @@ const deleteMaintain =  (id) => {
 };
 
 const deleteDamage =  (id) => {
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
       
       await Damage.findByIdAndDelete(id)
+      io.emit('damageDeleted', { id });
         resolve({
           status: "OK",
           message: "Delete damage road successfully",
@@ -850,6 +881,115 @@ const deleteDamage =  (id) => {
       
     } catch (error) {
       reject(error);
+    }
+  });
+};
+
+const isValidDateString = (str) => {
+  if (!/^\d{4}(-\d{2}(-\d{2})?)?$/.test(str)) return false;
+  const date = new Date(str);
+  return date instanceof Date && !isNaN(date);
+};
+
+const getDateRange = (searchTerm) => {
+  const startDate = new Date(searchTerm);
+  let endDate;
+  if (searchTerm.length === 4) {
+    // Year only (e.g., "2025")
+    endDate = new Date(startDate.getFullYear() + 1, 0, 1);
+  } else if (searchTerm.length === 7) {
+    // Year and month (e.g., "2025-03")
+    endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1);
+  } else {
+    // Full date (e.g., "2025-03-10")
+    endDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 1);
+  }
+  return { startDate, endDate };
+};
+
+const searchListDetection = (type, searchTerm) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+
+      if (type === 'maintain' && !isNaN(searchTerm) && searchTerm.trim() !== '') {
+        const numberValue = parseInt(searchTerm, 10);
+        if (!isNaN(numberValue)) {
+          const results = await Road.find({ dateMaintain: numberValue });
+          return resolve({
+            status: 'OK',
+            data: results,
+            message: 'Search maintain roads by dateMaintain successfully',
+          });
+        }
+      }
+      
+      
+      if (!searchTerm || typeof searchTerm !== 'string') {
+        return reject({
+          status: 'ERR',
+          message: 'Search term is required and must be a string',
+        });
+      }
+
+      let model;
+      let searchFields = [];
+      let dateFields = [];
+
+      if (type === 'hole') {
+        model = Hole;
+        searchFields = ['name', 'address', 'location', 'description'];
+        dateFields = ['createdAt', 'updatedAt'];
+      } else if (type === 'crack') {
+        model = Crack;
+        searchFields = ['name', 'address', 'location', 'description'];
+        dateFields = ['createdAt', 'updatedAt'];
+      } else if (type === 'maintain') {
+        model = Road;
+        searchFields = ['sourceName', 'destinationName'];
+        dateFields = ['createdAt', 'updatedAt', 'startDate', 'endDate'];
+      } else if (type === 'damage') {
+        model = Damage;
+        searchFields = ['name', 'sourceName', 'destinationName'];
+        dateFields = ['createdAt', 'updatedAt'];
+      } else {
+        return reject({
+          status: 'ERR',
+          message: 'Invalid type for search',
+        });
+      }
+
+      // Build the search query
+      const searchQuery = {
+        $or: [
+          // Text fields search with regex
+          ...searchFields.map((field) => ({
+            [field]: { $regex: searchTerm, $options: 'i' },
+          })),
+        ],
+      };
+
+      // Only include date fields if searchTerm is a valid date
+      if (isValidDateString(searchTerm)) {
+        const { startDate, endDate } = getDateRange(searchTerm);
+        searchQuery.$or.push(
+          ...dateFields.map((field) => ({
+            [field]: { $gte: startDate, $lt: endDate },
+          })),
+        );
+      }
+
+      const results = await model.find(searchQuery);
+
+      resolve({
+        status: 'OK',
+        data: results,
+        message: `Search ${type}s successfully`,
+      });
+    } catch (error) {
+      reject({
+        status: 'ERR',
+        message: error.message || 'An error occurred during search',
+      });
     }
   });
 };
@@ -881,6 +1021,6 @@ module.exports = {
   deleteMaintain,
   deleteDamage,
 
-
+  searchListDetection,
 
 };

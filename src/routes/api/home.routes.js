@@ -11,6 +11,7 @@ router.get('/map', detectionController.getMap);
 router.get('/data-hole', detectionController.getHomeHolesData);
 router.get('/data-crack', detectionController.getHomeCracksData);
 router.get('/data-maintain', detectionController.getHomeMaintainData);
+router.get('/data-damage', detectionController.getHomeDamageData);
 
 
 module.exports = router;  

@@ -220,8 +220,8 @@ const updateMaintain = async (req, res) => {
 
 const updateDamage = async (req, res) => {
     try {
-        const { sourceName, destinationName, locationA, locationB} = req.body;
-        const data = { sourceName, destinationName, locationA, locationB};
+        const { name, sourceName, destinationName, locationA, locationB} = req.body;
+        const data = { name, sourceName, destinationName, locationA, locationB};
         const response = await DetectionServices.updateDamage(req.params.id, data);
         return res.status(200).json(response);
     } catch (e) {
@@ -415,6 +415,39 @@ const getHomeMaintainData = async (req, res) => {
         });
     }
 };
+
+const getHomeDamageData = async (req, res) => {
+    try {
+        const listDamage = await DetectionServices.getDamageRoad();
+        return res.render('homeDataDamage.ejs', {
+            listDamage: listDamage.data,
+            totalDamage: listDamage.total
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
+
+const searchListDetection = async (req, res) => {
+    try {
+        const { type, term } = req.query;
+        if (!type || !term) {
+            return res.status(400).json({
+                status: "ERR",
+                message: "Type and search query parameters are required",
+            });
+        }
+        const response = await DetectionServices.searchListDetection(type, term);
+        return res.status(200).json(response);
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ status: "error", message: "Internal server error" });
+    }
+}
+
+
 module.exports = {
     createDetection,
     createDetectionForJetson,
@@ -433,6 +466,7 @@ module.exports = {
 
     getHomeHolesData,
     getHomeCracksData,
+    getHomeDamageData,
     getMap,
 
     getDetailHole,
@@ -448,4 +482,6 @@ module.exports = {
     deleteMaintain,
     deleteDamage,
 
+    searchListDetection,
+    
 }

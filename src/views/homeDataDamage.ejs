@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maintain Roads</title>
+    <title>Damage Data</title>
     <style>
         * {
             margin: 0;
@@ -118,7 +118,7 @@
         }
 
         .update-button {
-            background-color: #0074f8;
+            background-color: #007bff;
             color: white;
         }
 
@@ -234,69 +234,63 @@
     <div class="topnav">
         <a href="/home/data-hole">Holes Data</a>
         <a href="/home/data-crack">Cracks Data</a>
-        <a class="active" href="/home/data-maintain">Maintain Road Data</a>
-        <a href="/home/data-damage">Maintain Road Data</a>
-        <a href="/home/data-send-help">Home Data Send Help</a>
+        <a href="/home/data-maintain">Maintain Road Data</a>
+        <a class="active" href="/home/data-damage">Damage Data</a>
+        \ <a href="/home/data-send-help">Home Data Send Help</a>
         <a href="/home/map">Map</a>
+
     </div>
 
     <div class="content">
-        <div class="data-summary"><strong>Total Maintain Roads:</strong> <span id="totalMaintain">
-                <%= totalMaintain %>
+        <div class="data-status"><strong>Total Damage Roads:</strong> <span id="totalDamage">
+                <%= totalDamage %>
             </span></div>
 
-        <div class="table-container" id="MaintainContainer">
-            <div class="title">Maintain Roads Data</div>
+        <div class="table-container" id="DamageContainer">
+            <div class="title">Damage Road Data</div>
             <table>
                 <thead>
                     <tr>
-                        <th>Source Name</th>
-                        <th>Destination Name</th>
+                        <th>Name</th>
+                        <th>Start Location</th>
+                        <th>End Location</th>
                         <th>Location A</th>
                         <th>Location B</th>
-                        <th>Start Date</th>
-                        <th>End Date</th>
                         <th>Created At</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="maintainTableBody">
-                    <% listMaintain.forEach(function(maintain) { %>
-                        <tr id="row-<%= maintain._id %>">
-                            <td data-label="Source Name">
-                                <%= maintain.sourceName %>
+                <tbody id="damageTableBody">
+                    <% listDamage.forEach(function(damage) { %>
+                        <tr id="damage-row-<%= damage._id %>">
+                            <td data-label="Name">
+                                <%= damage.name %>
                             </td>
-                            <td data-label="Destination Name">
-                                <%= maintain.destinationName %>
+                            <td data-label="Start Location">
+                                <%= damage.sourceName %>
+                            </td>
+                            <td data-label="End Location">
+                                <%= damage.destinationName %>
                             </td>
                             <td data-label="Location A">
-                                <%= maintain.locationA %>
+                                <%= damage.locationA %>
                             </td>
                             <td data-label="Location B">
-                                <%= maintain.locationB %>
-                            </td>
-                            <td data-label="Start Date">
-                                <%= new Date(maintain.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh'
-                                    }) %>
-                            </td>
-                            <td data-label="End Date">
-                                <%= new Date(maintain.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
-                                    %>
+                                <%= damage.locationB %>
                             </td>
                             <td data-label="Created At">
-                                <%= new Date(maintain.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh'
-                                    }) %>
+                                <%= new Date(damage.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+                                    %>
                             </td>
                             <td data-label="Actions">
-                                <button class="action-button update-button" id="update-<%= maintain._id %>"
-                                    data-source-name="<%= encodeURIComponent(JSON.stringify(maintain.sourceName)) %>"
-                                    data-destination-name="<%= encodeURIComponent(JSON.stringify(maintain.destinationName)) %>"
-                                    data-location-a="<%= encodeURIComponent(JSON.stringify(maintain.locationA)) %>"
-                                    data-location-b="<%= encodeURIComponent(JSON.stringify(maintain.locationB)) %>"
-                                    data-start-date="<%= maintain.startDate %>"
-                                    data-end-date="<%= maintain.endDate %>">Update</button>
+                                <button class="action-button update-button" id="update-<%= damage._id %>"
+                                    data-name="<%= encodeURIComponent(JSON.stringify(damage.name)) %>"
+                                    data-source-name="<%= encodeURIComponent(JSON.stringify(damage.sourceName)) %>"
+                                    data-destination-name="<%= encodeURIComponent(JSON.stringify(damage.destinationName)) %>"
+                                    data-location-a="<%= encodeURIComponent(JSON.stringify(damage.locationA)) %>"
+                                    data-location-b="<%= encodeURIComponent(JSON.stringify(damage.locationB)) %>">Update</button>
                                 <button class="action-button delete-button"
-                                    id="delete-<%= maintain._id %>">Delete</button>
+                                    id="delete-<%= damage._id %>">Delete</button>
                             </td>
                         </tr>
                         <% }) %>
@@ -305,24 +299,27 @@
         </div>
     </div>
 
-    <div id="notification-maintain" class="notification"></div>
+    <div id="notification-damage" class="notification"></div>
 
-    <div id="updateModal-maintain" class="modal">
+    <div id="updateModal-damage" class="modal">
         <div class="modal-content">
-            <h2>Update Maintain Road</h2>
-            <form id="updateForm-maintain">
-                <label for="updateSourceName">Source Name</label>
+            <h2>Update Damage</h2>
+            <form id="updateForm-damage">
+                <label for="updateName">Name</label>
+                <input type="text" id="updateName" name="name" required>
+
+                <label for="updateSourceName">Start Location</label>
                 <input type="text" id="updateSourceName" name="sourceName" required>
-                <label for="updateDestinationName">Destination Name</label>
+
+                <label for="updateDestinationName">End Location</label>
                 <input type="text" id="updateDestinationName" name="destinationName" required>
+
                 <label for="updateLocationA">Location A</label>
                 <input type="text" id="updateLocationA" name="locationA" required>
+
                 <label for="updateLocationB">Location B</label>
                 <input type="text" id="updateLocationB" name="locationB" required>
-                <label for="updateStartDate">Start Date</label>
-                <input type="datetime-local" id="updateStartDate" name="startDate" required>
-                <label for="updateEndDate">End Date</label>
-                <input type="datetime-local" id="updateEndDate" name="endDate" required>
+
                 <button type="submit" class="save-button">Save</button>
                 <button type="button" class="cancel-button" onclick="closeUpdateModal()">Cancel</button>
             </form>
@@ -333,10 +330,10 @@
     <script>
     document.addEventListener('DOMContentLoaded', function () {
         const socket = io();
-        let currentMaintainId = null;
+        let currentDamageId = null;
 
         function showNotification(message) {
-            const notification = document.getElementById('notification-maintain');
+            const notification = document.getElementById('notification-damage');
             if (!notification) {
                 console.error('Notification element not found');
                 return;
@@ -355,17 +352,16 @@
             tableContainer.scrollTop += rowRect.top - containerRect.top - (containerRect.height / 2) + (rowRect.height / 2);
         }
 
-        function openUpdateModal(id, sourceName, destinationName, locationA, locationB, startDate, endDate) {
+        function openUpdateModal(id, name, sourceName, destinationName, locationA, locationB) {
             try {
-                currentMaintainId = id;
+                currentDamageId = id;
+                document.getElementById('updateName').value = name || '';
                 document.getElementById('updateSourceName').value = sourceName || '';
                 document.getElementById('updateDestinationName').value = destinationName || '';
                 document.getElementById('updateLocationA').value = locationA || '';
                 document.getElementById('updateLocationB').value = locationB || '';
-                document.getElementById('updateStartDate').value = startDate ? new Date(startDate).toISOString().slice(0, 16) : '';
-                document.getElementById('updateEndDate').value = endDate ? new Date(endDate).toISOString().slice(0, 16) : '';
-                document.getElementById('updateModal-maintain').style.display = 'flex';
-                console.log('Opening modal with data:', { id, sourceName, destinationName, locationA, locationB, startDate, endDate });
+                document.getElementById('updateModal-damage').style.display = 'flex';
+                console.log('Opening modal with data:', { id, name, sourceName, destinationName, locationA, locationB });
             } catch (error) {
                 console.error('Error in openUpdateModal:', error);
                 showNotification('Error loading update form');
@@ -373,40 +369,39 @@
         }
 
         function closeUpdateModal() {
-            document.getElementById('updateModal-maintain').style.display = 'none';
-            currentMaintainId = null;
+            document.getElementById('updateModal-damage').style.display = 'none';
+            currentDamageId = null;
         }
 
-        document.getElementById('updateForm-maintain').addEventListener('submit', async function (e) {
+        document.getElementById('updateForm-damage').addEventListener('submit', async function (e) {
             e.preventDefault();
+
+            const name = document.getElementById('updateName').value;
             const sourceName = document.getElementById('updateSourceName').value;
             const destinationName = document.getElementById('updateDestinationName').value;
             const locationA = document.getElementById('updateLocationA').value;
             const locationB = document.getElementById('updateLocationB').value;
-            const startDate = document.getElementById('updateStartDate').value;
-            const endDate = document.getElementById('updateEndDate').value;
 
-            if (!sourceName || !destinationName || !locationA || !locationB || !startDate || !endDate) {
+            if (!name || !sourceName || !destinationName || !locationA || !locationB) {
                 showNotification('Please fill in all required fields');
                 return;
             }
 
             const formData = {
+                name,
                 sourceName,
                 destinationName,
                 locationA,
-                locationB,
-                startDate,
-                endDate
+                locationB
             };
 
             console.log('Sending update request:', {
-                id: currentMaintainId,
+                id: currentDamageId,
                 ...formData
             });
 
             try {
-                const response = await fetch(`/api/detection/update-maintain/${currentMaintainId}`, {
+                const response = await fetch(`/api/detection/update-damage/${currentDamageId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -417,35 +412,35 @@
                 if (response.ok) {
                     showNotification(result.message);
                     closeUpdateModal();
-                    socket.emit('maintainUpdated', {
-                        id: currentMaintainId,
+                    socket.emit('damageUpdated', {
+                        id: currentDamageId,
                         ...formData,
                         createdAt: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
                     });
                 } else {
-                    showNotification(result.message || 'Failed to update maintain road');
+                    showNotification(result.message || 'Failed to update damage road');
                 }
             } catch (error) {
-                showNotification('Error updating maintain road');
+                showNotification('Error updating damage road');
                 console.error('Error:', error);
             }
         });
 
-        async function deleteMaintain(id) {
-            if (!confirm('Are you sure you want to delete this maintain road?')) return;
+        async function deleteDamage(id) {
+            if (!confirm('Are you sure you want to delete this damage road?')) return;
             try {
-                const response = await fetch(`/api/detection/delete-maintain/${id}`, {
+                const response = await fetch(`/api/detection/delete-damage/${id}`, {
                     method: 'DELETE'
                 });
                 const result = await response.json();
                 if (response.ok) {
                     showNotification(result.message);
-                    socket.emit('deleteMaintain', { id });
+                    socket.emit('damageDeleted', { id });
                 } else {
-                    showNotification(result.message || 'Failed to delete maintain road');
+                    showNotification(result.message || 'Failed to delete damage road');
                 }
             } catch (error) {
-                showNotification('Error deleting maintain road');
+                showNotification('Error deleting damage road');
                 console.error('Error:', error);
             }
         }
@@ -454,7 +449,7 @@
             document.querySelectorAll('.delete-button').forEach(button => {
                 button.addEventListener('click', () => {
                     const id = button.id.replace('delete-', '');
-                    deleteMaintain(id);
+                    deleteDamage(id);
                 });
             });
 
@@ -462,13 +457,12 @@
                 button.addEventListener('click', () => {
                     try {
                         const id = button.id.replace('update-', '');
+                        const name = JSON.parse(decodeURIComponent(button.getAttribute('data-name')));
                         const sourceName = JSON.parse(decodeURIComponent(button.getAttribute('data-source-name')));
                         const destinationName = JSON.parse(decodeURIComponent(button.getAttribute('data-destination-name')));
                         const locationA = JSON.parse(decodeURIComponent(button.getAttribute('data-location-a')));
                         const locationB = JSON.parse(decodeURIComponent(button.getAttribute('data-location-b')));
-                        const startDate = button.getAttribute('data-start-date');
-                        const endDate = button.getAttribute('data-end-date');
-                        openUpdateModal(id, sourceName, destinationName, locationA, locationB, startDate, endDate);
+                        openUpdateModal(id, name, sourceName, destinationName, locationA, locationB);
                     } catch (error) {
                         console.error('Error parsing JSON:', error);
                         showNotification('Error loading update form');
@@ -483,109 +477,115 @@
             console.log('New user connected:', data);
         });
 
-        socket.on('maintainDeleted', function (data) {
-            const row = document.querySelector(`#row-${data.id}`);
+        socket.on('damageDeleted', function (data) {
+            const row = document.querySelector(`#damage-row-${data.id}`);
             if (row) {
                 row.remove();
-                const currentTotal = parseInt(document.getElementById('totalMaintain').innerText);
-                document.getElementById('totalMaintain').innerText = currentTotal - 1;
-                showNotification('Maintain road deleted successfully');
+                const currentTotal = parseInt(document.getElementById('totalDamage').innerText);
+                document.getElementById('totalDamage').innerText = currentTotal - 1;
+                showNotification('Damage road deleted successfully');
             }
         });
 
-        socket.on('maintainUpdated', function (data) {
-            console.log('Received maintainUpdated:', JSON.stringify(data, null, 2));
+        socket.on('damageUpdated', function (data) {
+            console.log('Received damageUpdated:', JSON.stringify(data, null, 2));
+
             if (!data || !data.id) {
                 console.error('Invalid data or missing ID:', data);
                 showNotification('Error: Invalid update data received');
                 return;
             }
-            const allRowIds = Array.from(document.querySelectorAll('tr[id^="row-"]')).map(row => row.id.replace('row-', ''));
+
+            const allRowIds = Array.from(document.querySelectorAll('tr[id^="damage-row-"]')).map(row => row.id.replace('damage-row-', ''));
             console.log('Current row IDs in table:', allRowIds);
-            const rows = document.querySelectorAll('tr[id^="row-"]');
+
+            const rows = document.querySelectorAll('tr[id^="damage-row-"]');
             rows.forEach(row => {
-                const id = row.id.replace('row-', '');
+                const id = row.id.replace('damage-row-', '');
                 console.log(`Found row with id: ${id}`);
             });
+
             console.log('Querying for row with ID:', data.id);
-            const row = document.querySelector(`#row-${data.id}`);
+            const row = document.querySelector(`#damage-row-${data.id}`);
             if (row) {
                 console.log('Row found:', row);
                 let html = `
-                    <td data-label="Source Name">${data.sourceName}</td>
-                    <td data-label="Destination Name">${data.destinationName}</td>
+                    <td data-label="Name">${data.name}</td>
+                    <td data-label="Start Location">${data.sourceName}</td>
+                    <td data-label="End Location">${data.destinationName}</td>
                     <td data-label="Location A">${data.locationA}</td>
                     <td data-label="Location B">${data.locationB}</td>
-                    <td data-label="Start Date">${new Date(data.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                    <td data-label="End Date">${new Date(data.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                    <td data-label="Created At">${data.createdAt}</td>
+                    <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
                     <td data-label="Actions">
                         <button class="action-button update-button" 
                             id="update-${data.id}" 
+                            data-name="${encodeURIComponent(JSON.stringify(data.name))}"
                             data-source-name="${encodeURIComponent(JSON.stringify(data.sourceName))}"
                             data-destination-name="${encodeURIComponent(JSON.stringify(data.destinationName))}"
                             data-location-a="${encodeURIComponent(JSON.stringify(data.locationA))}"
-                            data-location-b="${encodeURIComponent(JSON.stringify(data.locationB))}"
-                            data-start-date="${data.startDate}"
-                            data-end-date="${data.end-date}">Update</button>
+                            data-location-b="${encodeURIComponent(JSON.stringify(data.locationB))}">Update</button>
                         <button class="action-button delete-button" id="delete-${data.id}">Delete</button>
                     </td>`;
                 const newRow = document.createElement('tr');
-                newRow.setAttribute('id', `row-${data.id}`);
+                newRow.setAttribute('id', `damage-row-${data.id}`);
                 newRow.innerHTML = html;
                 row.parentNode.replaceChild(newRow, row);
                 attachButtonEvents();
-                showNotification('Maintain road updated successfully');
-                scrollToNewRow('MaintainContainer', newRow);
+                showNotification('Damage road updated successfully');
+                scrollToNewRow('DamageContainer', newRow);
             } else {
                 console.error('Row not found for update:', data.id);
                 console.log('Expected ID:', data.id, 'Available IDs:', allRowIds);
-                showNotification('Error: Updated maintain road not found in table');
+                showNotification('Error: Updated damage road not found in table');
             }
         });
 
-        socket.on('newMaintainRoad', function (data) {
-            console.log('Received newMaintainRoad:', JSON.stringify(data, null, 2));
+        socket.on('newDamageRoad', function (data) {
+            console.log('Received newDamageRoad:', JSON.stringify(data, null, 2));
 
             if (!data || !data.id) {
                 console.error('Invalid data or missing ID:', data);
-                showNotification('Error: Invalid new maintain road data received');
+                showNotification('Error: Invalid new damage road data received');
                 return;
             }
 
-            const tableBody = document.getElementById('maintainTableBody');
+            const tableBody = document.getElementById('damageTableBody');
             const newRow = document.createElement('tr');
-            newRow.setAttribute('id', `row-${data.id}`);
-            
+            newRow.setAttribute('id', `damage-row-${data.id}`);
+
             let html = `
-                <td data-label="Source Name">${data.sourceName}</td>
-                <td data-label="Destination Name">${data.destinationName}</td>
+                <td data-label="Name">${data.name}</td>
+                <td data-label="Start Location">${data.sourceName}</td>
+                <td data-label="End Location">${data.destinationName}</td>
                 <td data-label="Location A">${data.locationA}</td>
                 <td data-label="Location B">${data.locationB}</td>
-                <td data-label="Start Date">${new Date(data.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                <td data-label="End Date">${new Date(data.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
                 <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
                 <td data-label="Actions">
                     <button class="action-button update-button" 
                         id="update-${data.id}" 
+                        data-name="${encodeURIComponent(JSON.stringify(data.name))}"
                         data-source-name="${encodeURIComponent(JSON.stringify(data.sourceName))}"
                         data-destination-name="${encodeURIComponent(JSON.stringify(data.destinationName))}"
                         data-location-a="${encodeURIComponent(JSON.stringify(data.locationA))}"
                         data-location-b="${encodeURIComponent(JSON.stringify(data.locationB))}"
-                        data-start-date="${data.startDate}"
-                        data-end-date="${data.endDate}">Update</button>
+                    >Update</button>
                     <button class="action-button delete-button" id="delete-${data.id}">Delete</button>
                 </td>`;
             newRow.innerHTML = html;
             tableBody.appendChild(newRow);
 
-            const totalMaintainElement = document.getElementById('totalMaintain');
-            const currentTotal = parseInt(totalMaintainElement.innerText) || 0;
-            totalMaintainElement.innerText = currentTotal + 1;
+            // Update total Damage Roads
+            const totalDamageElement = document.getElementById('totalDamage');
+            const currentTotal = parseInt(totalDamageElement.innerText) || 0;
+            totalDamageElement.innerText = currentTotal + 1;
 
+            // Re-attach event listeners to buttons
             attachButtonEvents();
-            scrollToNewRow('MaintainContainer', newRow);
-            showNotification('New maintain road added successfully');
+
+            // Scroll to the new row
+            scrollToNewRow('DamageContainer', newRow);
+
+            showNotification('New damage road added successfully');
         });
     });
 </script>
