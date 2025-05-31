@@ -429,6 +429,36 @@ const getDetailCrack = (id) => {
   });
 };
 
+const getDetailMaintain = (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const road = await Road.findById(id);
+      resolve({
+        data: road,
+        status: "OK",
+        message: "Get detail road successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const getDetailDamage = (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const damage = await Damage.findById(id);
+      resolve({
+        data: damage,
+        status: "OK",
+        message: "Get detail damage successfully",
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 const getListForTracking = (coordinates) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -672,7 +702,8 @@ const updateHole = (id, data, image) => {
             address: updatedHole.address,
             description: updatedHole.description,
             image: updatedHole.image,
-            createdAt: updatedHole.createdAt
+            createdAt: updatedHole.createdAt.toISOString(),
+            updatedAt: updatedHole.updatedAt.toISOString()
         });
       resolve({
         status: "OK",
@@ -723,7 +754,9 @@ const updateCrack = (id, data, image) => {
                 location: updateCrack.location,
                 address: updateCrack.address,
                 description: updateCrack.description,
-                image: updateCrack.image || null
+                image: updateCrack.image || null,
+                createdAt: updateCrack.createdAt.toISOString(),
+                updatedAt: updateCrack.updatedAt.toISOString()
             });
       resolve({
         status: "OK",
@@ -910,7 +943,7 @@ const getDateRange = (searchTerm) => {
 const searchListDetection = (type, searchTerm) => {
   return new Promise(async (resolve, reject) => {
     try {
-
+      console.log("searchListDetection", type, searchTerm);
       if (type === 'maintain' && !isNaN(searchTerm) && searchTerm.trim() !== '') {
         const numberValue = parseInt(searchTerm, 10);
         if (!isNaN(numberValue)) {
@@ -1005,6 +1038,8 @@ module.exports = {
   getListCracks,
   getDetailHole,
   getDetailCrack,
+  getDetailMaintain,
+  getDetailDamage,
   getListForTracking,
   getMaintainRoad,
   getMaintainRoadForMap,

@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Data</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .topnav {
+            background-color: #333;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .topnav a {
+            float: left;
+            color: #f2f2f2;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+            font-size: 17px;
+        }
+
+        .topnav a:hover {
+            background-color: #ddd;
+            color: black;
+        }
+
+        .topnav a.active {
+            background-color: #04AA6D;
+            color: white;
+        }
+
+        .content {
+            padding-top: 60px;
+            padding: 20px;
+        }
+
+        .title {
+            font-size: 25px;
+            font-weight: 600;
+            padding-bottom: 10px;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .search-container select,
+        .search-container input[type="text"],
+        .search-container button {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .search-container button {
+            background-color: #04AA6D;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .search-container button:hover {
+            background-color: #039d5a;
+        }
+
+        .table-container {
+            padding: 15px 0;
+            overflow-y: auto;
+            max-height: 70vh;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            background-color: #333;
+            color: white;
+            z-index: 1;
+        }
+
+        tr {
+            cursor: pointer;
+        }
+
+        tr:hover {
+            background-color: #b4b2b2;
+        }
+
+        .notification {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background-color: #04AA6D;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        .modal-content p {
+            margin: 10px 0;
+        }
+
+        .modal-content button {
+            padding: 8px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal-content .cancel-button {
+            background-color: #f44336;
+            color: white;
+        }
+
+        #detailMap {
+            width: 100%;
+            height: 300px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 600px) {
+            .table-container {
+                padding: 10px 0;
+            }
+
+            table,
+            thead,
+            tbody,
+            th,
+            td,
+            tr {
+                display: block;
+            }
+
+            th,
+            td {
+                text-align: right;
+            }
+
+            td::before {
+                content: attr(data-label);
+                float: left;
+                font-weight: bold;
+            }
+
+            td {
+                text-align: right;
+                display: block;
+                width: 100%;
+            }
+
+            .notification {
+                top: 60px;
+                right: 10px;
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 15px;
+                max-height: 85vh;
+            }
+
+            #detailMap {
+                height: 200px;
+            }
+
+            .search-container {
+                flex-direction: column;
+            }
+
+            .search-container select,
+            .search-container input[type="text"],
+            .search-container button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topnav">
+        <a href="/home/data-hole">Holes Data</a>
+        <a href="/home/data-crack">Cracks Data</a>
+        <a href="/home/data-maintain">Maintain Road Data</a>
+        <a href="/home/data-damage">Damage Data</a>
+        <a href="/home/data-send-help">Home Data Send Help</a>
+        <a class="active" href="/home/search">Search</a>
+        <a href="/home/map">Map</a>
+    </div>
+
+    <div class="content">
+        <div class="title">Search Data</div>
+        <div class="search-container">
+            <select id="searchType" required>
+                <option value="" disabled selected>Select Type</option>
+                <option value="hole">Hole</option>
+                <option value="crack">Crack</option>
+                <option value="maintain">Maintain Road</option>
+                <option value="damage">Damage Road</option>
+            </select>
+            <input type="text" id="searchTerm" placeholder="Enter search term" required>
+            <button id="searchButton">Search</button>
+        </div>
+
+        <div class="table-container" id="resultsContainer" style="display: none;">
+            <table id="resultsTable">
+                <thead id="resultsTableHead"></thead>
+                <tbody id="resultsTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <h2 id="detailModalTitle"></h2>
+            <div id="detailContent"></div>
+            <div id="detailMap"></div>
+            <button type="button" class="cancel-button" id="closeDetailButton">Close</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&libraries=directions"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const socket = io();
+
+            // Hàm hiển thị thông báo
+            function showNotification(message, isError = false) {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.style.backgroundColor = isError ? '#f44336' : '#04AA6D';
+                notification.classList.add('show');
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+
+            // Hàm parse LatLng
+            // Hàm parse LatLng
+            function parseLatLng(locationStr) {
+                try {
+                    let lat, lng;
+                    // Match format: LatLng(latitude:XX.XXXX, longitude:YY.YYYY)
+                    const labeledMatch = locationStr.match(/LatLng\(latitude:([\d.-]+),\s*longitude:([\d.-]+)\)/);
+                    if (labeledMatch) {
+                        lat = parseFloat(labeledMatch[1]);
+                        lng = parseFloat(labeledMatch[2]);
+                    } else {
+                        // Match format: LatLng(XX.XXXX, YY.YYYY)
+                        const plainMatch = locationStr.match(/LatLng\(([\d.-]+),\s*([\d.-]+)\)/);
+                        if (plainMatch) {
+                            lat = parseFloat(plainMatch[1]);
+                            lng = parseFloat(plainMatch[2]);
+                        } else {
+                            throw new Error('Invalid location format');
+                        }
+                    }
+                    if (isNaN(lat) || isNaN(lng)) {
+                        throw new Error('Invalid coordinates');
+                    }
+                    return { lat, lng };
+                } catch (error) {
+                    console.error('Error parsing LatLng:', error);
+                    return null;
+                }
+            }
+
+            // Hàm khởi tạo bản đồ
+            function initMap(locationA, locationB = null, mapElementId = 'detailMap') {
+                const mapElement = document.getElementById(mapElementId);
+                if (!locationA) {
+                    mapElement.innerHTML = '<p>Unable to display map: Invalid location</p>';
+                    return;
+                }
+                const map = new google.maps.Map(mapElement, {
+                    center: locationA,
+                    zoom: 12,
+                    mapTypeId: 'terrain'
+                });
+
+                // Single marker for hole/crack
+                if (!locationB) {
+                    new google.maps.Marker({
+                        position: locationA,
+                        map: map,
+                        title: 'Location'
+                    });
+                } else {
+                    // Markers and route for maintain/damage
+                    new google.maps.Marker({
+                        position: locationA,
+                        map: map,
+                        title: 'Location A'
+                    });
+                    new google.maps.Marker({
+                        position: locationB,
+                        map: map,
+                        title: 'Location B'
+                    });
+
+                    const directionsService = new google.maps.DirectionsService();
+                    const directionsRenderer = new google.maps.DirectionsRenderer({
+                        map: map,
+                        suppressMarkers: true
+                    });
+
+                    directionsService.route({
+                        origin: locationA,
+                        destination: locationB,
+                        travelMode: google.maps.TravelMode.DRIVING
+                    }, (result, status) => {
+                        if (status === google.maps.DirectionsStatus.OK) {
+                            directionsRenderer.setDirections(result);
+                        } else {
+                            console.error('Directions request failed:', status);
+                            mapElement.innerHTML = '<p>Unable to display route</p>';
+                        }
+                    });
+                }
+            }
+
+            // Đóng modal Detail
+            function closeDetailModal() {
+                document.getElementById('detailModal').style.display = 'none';
+                document.getElementById('detailMap').innerHTML = ''; // Clear map
+            }
+
+            // Xử lý nhấp ra ngoài để đóng modal Detail
+            document.getElementById('detailModal').addEventListener('click', function (e) {
+                if (e.target === this) {
+                    closeDetailModal();
+                }
+            });
+
+            // Gắn sự kiện cho nút Close
+            document.getElementById('closeDetailButton').addEventListener('click', closeDetailModal);
+
+            // Hàm thực hiện tìm kiếm
+            async function performSearch() {
+                const type = document.getElementById('searchType').value;
+                const searchTerm = document.getElementById('searchTerm').value.trim();
+
+                if (!type || !searchTerm) {
+                    showNotification('Please select a type and enter a search term', true);
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/detection/search-list-detection?type=${encodeURIComponent(type)}&term=${encodeURIComponent(searchTerm)}`);
+                    const result = await response.json();
+
+                    if (result.status === 'OK') {
+                        displaySearchResults(type, result.data);
+                        showNotification(result.message);
+                    } else {
+                        document.getElementById('resultsContainer').style.display = 'none';
+                        showNotification(result.message, true);
+                    }
+                } catch (error) {
+                    document.getElementById('resultsContainer').style.display = 'none';
+                    showNotification('Error performing search', true);
+                    console.error('Search error:', error);
+                }
+            }
+
+            // Hàm hiển thị kết quả tìm kiếm
+            function displaySearchResults(type, data) {
+                const tableHead = document.getElementById('resultsTableHead');
+                const tableBody = document.getElementById('resultsTableBody');
+                const resultsContainer = document.getElementById('resultsContainer');
+
+                tableHead.innerHTML = '';
+                tableBody.innerHTML = '';
+
+                if (!data || data.length === 0) {
+                    resultsContainer.style.display = 'none';
+                    showNotification('No results found', true);
+                    return;
+                }
+
+                // Define table headers based on type
+                let headers = [];
+                if (type === 'hole' || type === 'crack') {
+                    headers = ['Name', 'Address', 'Location', 'Description', 'Created At'];
+                } else if (type === 'maintain' || type === 'damage') {
+                    headers = ['Name', 'Start Location', 'End Location', 'Location A', 'Location B', 'Created At'];
+                    if (type === 'maintain') {
+                        headers.splice(5, 0, 'Date Maintain','Start Date', 'End Date');
+                    }
+                }
+
+                // Create table header
+                const headerRow = document.createElement('tr');
+                headers.forEach(header => {
+                    const th = document.createElement('th');
+                    th.textContent = header;
+                    headerRow.appendChild(th);
+                });
+                tableHead.appendChild(headerRow);
+
+                // Create table rows
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.setAttribute('data-id', item._id);
+                    row.setAttribute('data-type', type);
+
+                    if (type === 'hole' || type === 'crack') {
+                        row.innerHTML = `
+                            <td data-label="Name">${item.name || 'N/A'}</td>
+                            <td data-label="Address">${item.address || 'N/A'}</td>
+                            <td data-label="Location">${item.location || 'N/A'}</td>
+                            <td data-label="Description">${item.description || 'N/A'}</td>
+                            <td data-label="Created At">${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>`;
+                    } else if (type === 'maintain') {
+                        row.innerHTML = `
+                            <td data-label="Name">${item.sourceName || 'N/A'}</td>
+                            <td data-label="Start Location">${item.sourceName || 'N/A'}</td>
+                            <td data-label="End Location">${item.destinationName || 'N/A'}</td>
+                            <td data-label="Location A">${item.locationA || 'N/A'}</td>
+                            <td data-label="Location B">${item.locationB || 'N/A'}</td>
+                            <td data-label="Date Maintain">${item.dateMaintain || 'N/A'}</td>
+                            <td data-label="Start Date">${item.startDate ? new Date(item.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : 'N/A'}</td>
+                            <td data-label="End Date">${item.endDate ? new Date(item.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : 'N/A'}</td>
+                            <td data-label="Created At">${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>`;
+                    } else if (type === 'damage') {
+                        row.innerHTML = `
+                            <td data-label="Name">${item.name || 'N/A'}</td>
+                            <td data-label="Start Location">${item.sourceName || 'N/A'}</td>
+                            <td data-label="End Location">${item.destinationName || 'N/A'}</td>
+                            <td data-label="Location A">${item.locationA || 'N/A'}</td>
+                            <td data-label="Location B">${item.locationB || 'N/A'}</td>
+                            <td data-label="Created At">${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>`;
+                    }
+
+                    tableBody.appendChild(row);
+
+                    // Add click event for row to open detail modal
+                    row.addEventListener('click', (e) => {
+                        if (e.target.closest('.action-button')) return; // Ignore button clicks
+                        const id = row.getAttribute('data-id');
+                        const type = row.getAttribute('data-type');
+                        openDetailModal(id, type);
+                    });
+                });
+
+                resultsContainer.style.display = 'block';
+            }
+
+            // Hàm hiển thị bản đồ cho hàng
+            function showMap(id, type, mapElementId = 'detailMap') {
+                const row = document.querySelector(`tr[data-id="${id}"][data-type="${type}"]`);
+                if (!row) return;
+
+                let locationA, locationB;
+                if (type === 'hole' || type === 'crack') {
+                    const location = row.querySelector('td[data-label="Location"]').textContent;
+                    locationA = parseLatLng(location);
+                    locationB = null;
+                } else {
+                    const locA = row.querySelector('td[data-label="Location A"]').textContent;
+                    const locB = row.querySelector('td[data-label="Location B"]').textContent;
+                    locationA = parseLatLng(locA);
+                    locationB = parseLatLng(locB);
+                }
+
+                initMap(locationA, locationB, mapElementId);
+            }
+
+            // Mở modal Detail
+            async function openDetailModal(id, type) {
+                try {
+                    const response = await fetch(`/api/detection/get-detail-${type}/${id}`);
+                    const result = await response.json();
+                    if (response.ok && result.status === 'OK') {
+                        const item = result.data;
+                        const modalTitle = document.getElementById('detailModalTitle');
+                        const detailContent = document.getElementById('detailContent');
+
+                        modalTitle.textContent = `${type.charAt(0).toUpperCase() + type.slice(1)} Details`;
+                        let html = '';
+                        if (type === 'hole' || type === 'crack') {
+                            html = `
+                                <p><strong>Name:</strong> ${item.name || 'N/A'}</p>
+                                <p><strong>Address:</strong> ${item.address || 'N/A'}</p>
+                                <p><strong>Location:</strong> ${item.location || 'N/A'}</p>
+                                <p><strong>Description:</strong> ${item.description || 'N/A'}</p>
+                                <p><strong>Created At:</strong> ${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>`;
+                            const locationA = parseLatLng(item.location);
+                            initMap(locationA);
+                        } else if (type === 'maintain') {
+                            html = `
+                                <p><strong>Source Name:</strong> ${item.sourceName || 'N/A'}</p>
+                                <p><strong>Destination Name:</strong> ${item.destinationName || 'N/A'}</p>
+                                <p><strong>Location A:</strong> ${item.locationA || 'N/A'}</p>
+                                <p><strong>Location B:</strong> ${item.locationB || 'N/A'}</p>
+                                <p><strong>Start Date:</strong> ${item.startDate ? new Date(item.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : 'N/A'}</p>
+                                <p><strong>End Date:</strong> ${item.endDate ? new Date(item.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : 'N/A'}</p>
+                                <p><strong>Date Maintain:</strong> ${item.dateMaintain || 'N/A'}</p>
+                                <p><strong>Created At:</strong> ${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>`;
+                            const locationA = parseLatLng(item.locationA);
+                            const locationB = parseLatLng(item.locationB);
+                            initMap(locationA, locationB);
+                        } else if (type === 'damage') {
+                            html = `
+                                <p><strong>Name:</strong> ${item.name || 'N/A'}</p>
+                                <p><strong>Start Location:</strong> ${item.sourceName || 'N/A'}</p>
+                                <p><strong>End Location:</strong> ${item.destinationName || 'N/A'}</p>
+                                <p><strong>Location A:</strong> ${item.locationA || 'N/A'}</p>
+                                <p><strong>Location B:</strong> ${item.locationB || 'N/A'}</p>
+                                <p><strong>Created At:</strong> ${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>`;
+                            const locationA = parseLatLng(item.locationA);
+                            const locationB = parseLatLng(item.locationB);
+                            initMap(locationA, locationB);
+                        }
+
+                        detailContent.innerHTML = html;
+                        document.getElementById('detailModal').style.display = 'flex';
+                    } else {
+                        showNotification(result.message || `Failed to fetch ${type} details`, true);
+                    }
+                } catch (error) {
+                    console.error(`Error fetching ${type} details:`, error);
+                    showNotification(`Error fetching ${type} details`, true);
+                }
+            }
+
+            // Gắn sự kiện cho nút Search và Enter key
+            document.getElementById('searchButton').addEventListener('click', performSearch);
+            document.getElementById('searchTerm').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

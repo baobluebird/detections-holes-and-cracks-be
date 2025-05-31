@@ -150,6 +150,28 @@ const getDetailCrack = async (req, res) => {
     }
 }
 
+const getDetailMaintain = async (req, res) => {
+    try {
+        const response = await DetectionServices.getDetailMaintain(req.params.id)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
+const getDetailDamage = async (req, res) => {
+    try {
+        const response = await DetectionServices.getDetailDamage(req.params.id)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
 const getListForTracking = async (req, res) => {
     try {
         const { coordinates } = req.body;
@@ -379,6 +401,7 @@ const getHomeHolesData = async (req, res) => {
     try {
         const listHole = await DetectionServices.getListHoles();
         return res.render('homeDataHole.ejs', {
+            googleMapsApiKey: process.env.API_GOOGLE_KEY,
             listHole: listHole.data,
             totalHole: listHole.total
         });
@@ -393,6 +416,7 @@ const getHomeCracksData = async (req, res) => {
     try {
         const listCrack = await DetectionServices.getListCracks();
         return res.render('homeDataCrack.ejs', {
+            googleMapsApiKey: process.env.API_GOOGLE_KEY,
             listCrack: listCrack.data,
             totalCrack: listCrack.total
         });
@@ -406,6 +430,7 @@ const getHomeMaintainData = async (req, res) => {
     try {
         const listMaintain = await DetectionServices.getMaintainRoad();
         return res.render('homeDataMaintainRoad.ejs', {
+            googleMapsApiKey: process.env.API_GOOGLE_KEY,
             listMaintain: listMaintain.data,
             totalMaintain: listMaintain.total
         });
@@ -420,8 +445,21 @@ const getHomeDamageData = async (req, res) => {
     try {
         const listDamage = await DetectionServices.getDamageRoad();
         return res.render('homeDataDamage.ejs', {
+            googleMapsApiKey: process.env.API_GOOGLE_KEY,
             listDamage: listDamage.data,
             totalDamage: listDamage.total
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
+
+const getSearch = async (req, res) => {
+    try {
+        return res.render('homeSearch.ejs', {
+            googleMapsApiKey: process.env.API_GOOGLE_KEY,
         });
     } catch (e) {
         return res.status(404).json({
@@ -468,9 +506,12 @@ module.exports = {
     getHomeCracksData,
     getHomeDamageData,
     getMap,
+    getSearch,
 
     getDetailHole,
     getDetailCrack,
+    getDetailMaintain,
+    getDetailDamage,
     
     updateHole,
     updateCrack,

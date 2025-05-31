@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -77,11 +76,15 @@
             z-index: 1;
         }
 
+        tr {
+            cursor: pointer; /* Indicate rows are clickable */
+        }
+
         tr:hover {
             background-color: rgb(180, 178, 178);
         }
 
-        .data-summary {
+        .data-status {
             padding: 0 20px;
         }
 
@@ -141,6 +144,8 @@
             border-radius: 8px;
             width: 90%;
             max-width: 500px;
+            max-height: 90vh; /* Limit height to 90% of viewport */
+            overflow-y: auto; /* Enable vertical scrollbar */
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
         }
 
@@ -182,10 +187,16 @@
             color: white;
         }
 
-        @media (max-width: 600px) {
+        #detailMap {
+            width: 100%;
+            height: 300px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
 
+        @media (max-width: 600px) {
             .table-container,
-            .data-summary {
+            .data-status {
                 padding: 10px;
             }
 
@@ -225,26 +236,28 @@
             .modal-content {
                 width: 95%;
                 padding: 15px;
+                max-height: 85vh; /* Slightly smaller on mobile */
+            }
+
+            #detailMap {
+                height: 200px; /* Smaller map on mobile */
             }
         }
     </style>
 </head>
-
 <body>
     <div class="topnav">
         <a href="/home/data-hole">Holes Data</a>
         <a href="/home/data-crack">Cracks Data</a>
         <a href="/home/data-maintain">Maintain Road Data</a>
         <a class="active" href="/home/data-damage">Damage Data</a>
-        \ <a href="/home/data-send-help">Home Data Send Help</a>
+        <a href="/home/data-send-help">Home Data Send Help</a>
         <a href="/home/map">Map</a>
-
+        <a href="/home/search">Search</a>
     </div>
 
     <div class="content">
-        <div class="data-status"><strong>Total Damage Roads:</strong> <span id="totalDamage">
-                <%= totalDamage %>
-            </span></div>
+        <div class="data-status"><strong>Total Damage Roads:</strong> <span id="totalDamage"><%= totalDamage %></span></div>
 
         <div class="table-container" id="DamageContainer">
             <div class="title">Damage Road Data</div>
@@ -262,25 +275,14 @@
                 </thead>
                 <tbody id="damageTableBody">
                     <% listDamage.forEach(function(damage) { %>
-                        <tr id="damage-row-<%= damage._id %>">
-                            <td data-label="Name">
-                                <%= damage.name %>
-                            </td>
-                            <td data-label="Start Location">
-                                <%= damage.sourceName %>
-                            </td>
-                            <td data-label="End Location">
-                                <%= damage.destinationName %>
-                            </td>
-                            <td data-label="Location A">
-                                <%= damage.locationA %>
-                            </td>
-                            <td data-label="Location B">
-                                <%= damage.locationB %>
-                            </td>
+                        <tr id="damage-row-<%= damage._id %>" data-id="<%= damage._id %>">
+                            <td data-label="Name"><%= damage.name %></td>
+                            <td data-label="Start Location"><%= damage.sourceName %></td>
+                            <td data-label="End Location"><%= damage.destinationName %></td>
+                            <td data-label="Location A"><%= damage.locationA %></td>
+                            <td data-label="Location B"><%= damage.locationB %></td>
                             <td data-label="Created At">
-                                <%= new Date(damage.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
-                                    %>
+                                <%= new Date(damage.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) %>
                             </td>
                             <td data-label="Actions">
                                 <button class="action-button update-button" id="update-<%= damage._id %>"
@@ -289,11 +291,10 @@
                                     data-destination-name="<%= encodeURIComponent(JSON.stringify(damage.destinationName)) %>"
                                     data-location-a="<%= encodeURIComponent(JSON.stringify(damage.locationA)) %>"
                                     data-location-b="<%= encodeURIComponent(JSON.stringify(damage.locationB)) %>">Update</button>
-                                <button class="action-button delete-button"
-                                    id="delete-<%= damage._id %>">Delete</button>
+                                <button class="action-button delete-button" id="delete-<%= damage._id %>">Delete</button>
                             </td>
                         </tr>
-                        <% }) %>
+                    <% }) %>
                 </tbody>
             </table>
         </div>
@@ -307,288 +308,402 @@
             <form id="updateForm-damage">
                 <label for="updateName">Name</label>
                 <input type="text" id="updateName" name="name" required>
-
                 <label for="updateSourceName">Start Location</label>
                 <input type="text" id="updateSourceName" name="sourceName" required>
-
                 <label for="updateDestinationName">End Location</label>
                 <input type="text" id="updateDestinationName" name="destinationName" required>
-
                 <label for="updateLocationA">Location A</label>
                 <input type="text" id="updateLocationA" name="locationA" required>
-
                 <label for="updateLocationB">Location B</label>
                 <input type="text" id="updateLocationB" name="locationB" required>
-
                 <button type="submit" class="save-button">Save</button>
-                <button type="button" class="cancel-button" onclick="closeUpdateModal()">Cancel</button>
+                <button type="button" class="cancel-button" id="cancelUpdateButton">Cancel</button>
             </form>
         </div>
     </div>
 
+    <div id="detailModal-damage" class="modal">
+        <div class="modal-content">
+            <h2>Damage Road Details</h2>
+            <div id="detailContent">
+                <p><strong>Name:</strong> <span id="detailName"></span></p>
+                <p><strong>Start Location:</strong> <span id="detailSourceName"></span></p>
+                <p><strong>End Location:</strong> <span id="detailDestinationName"></span></p>
+                <p><strong>Location A:</strong> <span id="detailLocationA"></span></p>
+                <p><strong>Location B:</strong> <span id="detailLocationB"></span></p>
+                <p><strong>Created At:</strong> <span id="detailCreatedAt"></span></p>
+                <div id="detailMap"></div>
+            </div>
+            <button type="button" class="cancel-button" id="closeDetailButton">Close</button>
+        </div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&libraries=directions"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const socket = io();
-        let currentDamageId = null;
+        document.addEventListener('DOMContentLoaded', function () {
+            const socket = io();
+            let currentDamageId = null;
 
-        function showNotification(message) {
-            const notification = document.getElementById('notification-damage');
-            if (!notification) {
-                console.error('Notification element not found');
-                return;
-            }
-            notification.textContent = message;
-            notification.classList.add('show');
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
-        }
-
-        function scrollToNewRow(containerId, row) {
-            const tableContainer = document.querySelector(`#${containerId}`);
-            const rowRect = row.getBoundingClientRect();
-            const containerRect = tableContainer.getBoundingClientRect();
-            tableContainer.scrollTop += rowRect.top - containerRect.top - (containerRect.height / 2) + (rowRect.height / 2);
-        }
-
-        function openUpdateModal(id, name, sourceName, destinationName, locationA, locationB) {
-            try {
-                currentDamageId = id;
-                document.getElementById('updateName').value = name || '';
-                document.getElementById('updateSourceName').value = sourceName || '';
-                document.getElementById('updateDestinationName').value = destinationName || '';
-                document.getElementById('updateLocationA').value = locationA || '';
-                document.getElementById('updateLocationB').value = locationB || '';
-                document.getElementById('updateModal-damage').style.display = 'flex';
-                console.log('Opening modal with data:', { id, name, sourceName, destinationName, locationA, locationB });
-            } catch (error) {
-                console.error('Error in openUpdateModal:', error);
-                showNotification('Error loading update form');
-            }
-        }
-
-        function closeUpdateModal() {
-            document.getElementById('updateModal-damage').style.display = 'none';
-            currentDamageId = null;
-        }
-
-        document.getElementById('updateForm-damage').addEventListener('submit', async function (e) {
-            e.preventDefault();
-
-            const name = document.getElementById('updateName').value;
-            const sourceName = document.getElementById('updateSourceName').value;
-            const destinationName = document.getElementById('updateDestinationName').value;
-            const locationA = document.getElementById('updateLocationA').value;
-            const locationB = document.getElementById('updateLocationB').value;
-
-            if (!name || !sourceName || !destinationName || !locationA || !locationB) {
-                showNotification('Please fill in all required fields');
-                return;
-            }
-
-            const formData = {
-                name,
-                sourceName,
-                destinationName,
-                locationA,
-                locationB
-            };
-
-            console.log('Sending update request:', {
-                id: currentDamageId,
-                ...formData
-            });
-
-            try {
-                const response = await fetch(`/api/detection/update-damage/${currentDamageId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    showNotification(result.message);
-                    closeUpdateModal();
-                    socket.emit('damageUpdated', {
-                        id: currentDamageId,
-                        ...formData,
-                        createdAt: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
-                    });
-                } else {
-                    showNotification(result.message || 'Failed to update damage road');
+            // Hàm hiển thị thông báo
+            function showNotification(message) {
+                const notification = document.getElementById('notification-damage');
+                if (!notification) {
+                    console.error('Notification element not found');
+                    return;
                 }
-            } catch (error) {
-                showNotification('Error updating damage road');
-                console.error('Error:', error);
+                notification.textContent = message;
+                notification.classList.add('show');
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
             }
-        });
 
-        async function deleteDamage(id) {
-            if (!confirm('Are you sure you want to delete this damage road?')) return;
-            try {
-                const response = await fetch(`/api/detection/delete-damage/${id}`, {
-                    method: 'DELETE'
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    showNotification(result.message);
-                    socket.emit('damageDeleted', { id });
-                } else {
-                    showNotification(result.message || 'Failed to delete damage road');
+            // Hàm cuộn đến dòng mới hoặc cập nhật
+            function scrollToNewRow(containerId, row) {
+                const tableContainer = document.querySelector(`#${containerId}`);
+                const rowRect = row.getBoundingClientRect();
+                const containerRect = tableContainer.getBoundingClientRect();
+                tableContainer.scrollTop += rowRect.top - containerRect.top - (containerRect.height / 2) + (rowRect.height / 2);
+            }
+
+            // Hàm parse LatLng
+            function parseLatLng(locationStr) {
+                try {
+                    // Match format: LatLng(latitude, longitude)
+                    const match = locationStr.match(/LatLng\(([\d.-]+),\s*([\d.-]+)\)/);
+                    if (match) {
+                        return {
+                            lat: parseFloat(match[1]),
+                            lng: parseFloat(match[2])
+                        };
+                    }
+                    throw new Error('Invalid location format');
+                } catch (error) {
+                    console.error('Error parsing LatLng:', error);
+                    return null;
                 }
-            } catch (error) {
-                showNotification('Error deleting damage road');
-                console.error('Error:', error);
             }
-        }
 
-        function attachButtonEvents() {
-            document.querySelectorAll('.delete-button').forEach(button => {
-                button.addEventListener('click', () => {
-                    const id = button.id.replace('delete-', '');
-                    deleteDamage(id);
+            // Hàm khởi tạo bản đồ với route
+            function initMap(startLatLng, endLatLng) {
+                if (!startLatLng || !endLatLng) {
+                    document.getElementById('detailMap').innerHTML = '<p>Unable to display map: Invalid location</p>';
+                    return;
+                }
+                const map = new google.maps.Map(document.getElementById('detailMap'), {
+                    center: startLatLng,
+                    zoom: 12,
+                    mapTypeId: 'terrain'
                 });
-            });
 
-            document.querySelectorAll('.update-button').forEach(button => {
-                button.addEventListener('click', () => {
-                    try {
-                        const id = button.id.replace('update-', '');
-                        const name = JSON.parse(decodeURIComponent(button.getAttribute('data-name')));
-                        const sourceName = JSON.parse(decodeURIComponent(button.getAttribute('data-source-name')));
-                        const destinationName = JSON.parse(decodeURIComponent(button.getAttribute('data-destination-name')));
-                        const locationA = JSON.parse(decodeURIComponent(button.getAttribute('data-location-a')));
-                        const locationB = JSON.parse(decodeURIComponent(button.getAttribute('data-location-b')));
-                        openUpdateModal(id, name, sourceName, destinationName, locationA, locationB);
-                    } catch (error) {
-                        console.error('Error parsing JSON:', error);
-                        showNotification('Error loading update form');
+                // Thêm marker cho điểm A và B
+                new google.maps.Marker({
+                    position: startLatLng,
+                    map: map,
+                    title: 'Location A'
+                });
+                new google.maps.Marker({
+                    position: endLatLng,
+                    map: map,
+                    title: 'Location B'
+                });
+
+                // Vẽ route giữa hai điểm
+                const directionsService = new google.maps.DirectionsService();
+                const directionsRenderer = new google.maps.DirectionsRenderer({
+                    map: map,
+                    suppressMarkers: true // Không hiển thị marker mặc định của route
+                });
+
+                directionsService.route({
+                    origin: startLatLng,
+                    destination: endLatLng,
+                    travelMode: google.maps.TravelMode.DRIVING
+                }, (result, status) => {
+                    if (status === google.maps.DirectionsStatus.OK) {
+                        directionsRenderer.setDirections(result);
+                    } else {
+                        console.error('Directions request failed:', status);
+                        document.getElementById('detailMap').innerHTML = '<p>Unable to display route</p>';
                     }
                 });
-            });
-        }
-
-        attachButtonEvents();
-
-        socket.on('newUserConnect', function (data) {
-            console.log('New user connected:', data);
-        });
-
-        socket.on('damageDeleted', function (data) {
-            const row = document.querySelector(`#damage-row-${data.id}`);
-            if (row) {
-                row.remove();
-                const currentTotal = parseInt(document.getElementById('totalDamage').innerText);
-                document.getElementById('totalDamage').innerText = currentTotal - 1;
-                showNotification('Damage road deleted successfully');
-            }
-        });
-
-        socket.on('damageUpdated', function (data) {
-            console.log('Received damageUpdated:', JSON.stringify(data, null, 2));
-
-            if (!data || !data.id) {
-                console.error('Invalid data or missing ID:', data);
-                showNotification('Error: Invalid update data received');
-                return;
             }
 
-            const allRowIds = Array.from(document.querySelectorAll('tr[id^="damage-row-"]')).map(row => row.id.replace('damage-row-', ''));
-            console.log('Current row IDs in table:', allRowIds);
+            // Mở modal Update
+            function openUpdateModal(id, name, sourceName, destinationName, locationA, locationB) {
+                try {
+                    currentDamageId = id;
+                    document.getElementById('updateName').value = name || '';
+                    document.getElementById('updateSourceName').value = sourceName || '';
+                    document.getElementById('updateDestinationName').value = destinationName || '';
+                    document.getElementById('updateLocationA').value = locationA || '';
+                    document.getElementById('updateLocationB').value = locationB || '';
+                    document.getElementById('updateModal-damage').style.display = 'flex';
+                } catch (error) {
+                    console.error('Error in openUpdateModal:', error);
+                    showNotification('Error loading update form');
+                }
+            }
 
-            const rows = document.querySelectorAll('tr[id^="damage-row-"]');
-            rows.forEach(row => {
-                const id = row.id.replace('damage-row-', '');
-                console.log(`Found row with id: ${id}`);
+            // Đóng modal Update
+            function closeUpdateModal() {
+                document.getElementById('updateModal-damage').style.display = 'none';
+                currentDamageId = null;
+            }
+
+            // Mở modal Detail
+            async function openDetailModal(id) {
+                try {
+                    const response = await fetch(`/api/detection/get-detail-damage/${id}`);
+                    const result = await response.json();
+                    if (response.ok && result.status === 'OK') {
+                        const damage = result.data;
+                        document.getElementById('detailName').textContent = damage.name || 'N/A';
+                        document.getElementById('detailSourceName').textContent = damage.sourceName || 'N/A';
+                        document.getElementById('detailDestinationName').textContent = damage.destinationName || 'N/A';
+                        document.getElementById('detailLocationA').textContent = damage.locationA || 'N/A';
+                        document.getElementById('detailLocationB').textContent = damage.locationB || 'N/A';
+                        document.getElementById('detailCreatedAt').textContent = damage.createdAt ? new Date(damage.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : 'N/A';
+
+                        const startLatLng = parseLatLng(damage.locationA);
+                        const endLatLng = parseLatLng(damage.locationB);
+                        initMap(startLatLng, endLatLng);
+
+                        document.getElementById('detailModal-damage').style.display = 'flex';
+                    } else {
+                        showNotification(result.message || 'Failed to fetch damage road details');
+                    }
+                } catch (error) {
+                    console.error('Error fetching damage road details:', error);
+                    showNotification('Error fetching damage road details');
+                }
+            }
+
+            // Đóng modal Detail
+            function closeDetailModal() {
+                document.getElementById('detailModal-damage').style.display = 'none';
+                document.getElementById('detailMap').innerHTML = ''; // Clear map
+            }
+
+            // Xử lý nhấp ra ngoài để đóng modal Update
+            document.getElementById('updateModal-damage').addEventListener('click', function (e) {
+                if (e.target === this) {
+                    closeUpdateModal();
+                }
             });
 
-            console.log('Querying for row with ID:', data.id);
-            const row = document.querySelector(`#damage-row-${data.id}`);
-            if (row) {
-                console.log('Row found:', row);
+            // Xử lý nhấp ra ngoài để đóng modal Detail
+            document.getElementById('detailModal-damage').addEventListener('click', function (e) {
+                if (e.target === this) {
+                    closeDetailModal();
+                }
+            });
+
+            // Gắn sự kiện cho nút Cancel và Close
+            document.getElementById('cancelUpdateButton').addEventListener('click', closeUpdateModal);
+            document.getElementById('closeDetailButton').addEventListener('click', closeDetailModal);
+
+            // Xử lý form Update
+            document.getElementById('updateForm-damage').addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const name = document.getElementById('updateName').value;
+                const sourceName = document.getElementById('updateSourceName').value;
+                const destinationName = document.getElementById('updateDestinationName').value;
+                const locationA = document.getElementById('updateLocationA').value;
+                const locationB = document.getElementById('updateLocationB').value;
+
+                if (!name || !sourceName || !destinationName || !locationA || !locationB) {
+                    showNotification('Please fill in all required fields');
+                    return;
+                }
+
+                const formData = {
+                    name,
+                    sourceName,
+                    destinationName,
+                    locationA,
+                    locationB
+                };
+
+                try {
+                    const response = await fetch(`/api/detection/update-damage/${currentDamageId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                        showNotification(result.message);
+                        closeUpdateModal();
+                        socket.emit('damageUpdated', {
+                            id: currentDamageId,
+                            ...formData,
+                            createdAt: result.data.createdAt || new Date().toISOString()
+                        });
+                    } else {
+                        showNotification(result.message || 'Failed to update damage road');
+                    }
+                } catch (error) {
+                    showNotification('Error updating damage road');
+                    console.error('Error:', error);
+                }
+            });
+
+            // Xử lý xóa Damage
+            async function deleteDamage(id) {
+                if (!confirm('Are you sure you want to delete this damage road?')) return;
+                try {
+                    const response = await fetch(`/api/detection/delete-damage/${id}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                        showNotification(result.message);
+                        socket.emit('damageDeleted', { id });
+                    } else {
+                        showNotification(result.message || 'Failed to delete damage road');
+                    }
+                } catch (error) {
+                    showNotification('Error deleting damage road');
+                    console.error('Error:', error);
+                }
+            }
+
+            // Gắn sự kiện cho các nút và hàng
+            function attachButtonEvents() {
+                document.querySelectorAll('.delete-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent row click
+                        const id = button.id.replace('delete-', '');
+                        deleteDamage(id);
+                    });
+                });
+
+                document.querySelectorAll('.update-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent row click
+                        try {
+                            const id = button.id.replace('update-', '');
+                            const name = JSON.parse(decodeURIComponent(button.getAttribute('data-name')));
+                            const sourceName = JSON.parse(decodeURIComponent(button.getAttribute('data-source-name')));
+                            const destinationName = JSON.parse(decodeURIComponent(button.getAttribute('data-destination-name')));
+                            const locationA = JSON.parse(decodeURIComponent(button.getAttribute('data-location-a')));
+                            const locationB = JSON.parse(decodeURIComponent(button.getAttribute('data-location-b')));
+                            openUpdateModal(id, name, sourceName, destinationName, locationA, locationB);
+                        } catch (error) {
+                            console.error('Error parsing JSON:', error);
+                            showNotification('Error loading update form');
+                        }
+                    });
+                });
+
+                document.querySelectorAll('tr[data-id]').forEach(row => {
+                    row.addEventListener('click', (e) => {
+                        if (e.target.closest('.action-button')) return; // Ignore button clicks
+                        const id = row.getAttribute('data-id');
+                        console.log('Row clicked with ID:', id); // Debug log
+                        openDetailModal(id);
+                    });
+                });
+            }
+
+            // Gọi hàm gắn sự kiện ban đầu
+            attachButtonEvents();
+
+            // Xử lý sự kiện socket
+            socket.on('newUserConnect', function (data) {
+                console.log('New user connected:', data);
+            });
+
+            socket.on('damageDeleted', function (data) {
+                const row = document.querySelector(`#damage-row-${data.id}`);
+                if (row) {
+                    row.remove();
+                    const currentTotal = parseInt(document.getElementById('totalDamage').innerText);
+                    document.getElementById('totalDamage').innerText = currentTotal - 1;
+                    showNotification('Damage road deleted successfully');
+                }
+            });
+
+            socket.on('damageUpdated', function (data) {
+                console.log('Received damageUpdated:', data);
+                const row = document.querySelector(`#damage-row-${data.id}`);
+                if (row) {
+                    let html = `
+                        <td data-label="Name">${data.name || 'N/A'}</td>
+                        <td data-label="Start Location">${data.sourceName || 'N/A'}</td>
+                        <td data-label="End Location">${data.destinationName || 'N/A'}</td>
+                        <td data-label="Location A">${data.locationA || 'N/A'}</td>
+                        <td data-label="Location B">${data.locationB || 'N/A'}</td>
+                        <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                        <td data-label="Actions">
+                            <button class="action-button update-button" 
+                                id="update-${data.id}" 
+                                data-name="${encodeURIComponent(JSON.stringify(data.name || ''))}"
+                                data-source-name="${encodeURIComponent(JSON.stringify(data.sourceName || ''))}"
+                                data-destination-name="${encodeURIComponent(JSON.stringify(data.destinationName || ''))}"
+                                data-location-a="${encodeURIComponent(JSON.stringify(data.locationA || ''))}"
+                                data-location-b="${encodeURIComponent(JSON.stringify(data.locationB || ''))}">Update</button>
+                            <button class="action-button delete-button" id="delete-${data.id}">Delete</button>
+                        </td>`;
+                    const newRow = document.createElement('tr');
+                    newRow.setAttribute('id', `damage-row-${data.id}`);
+                    newRow.setAttribute('data-id', data.id);
+                    newRow.innerHTML = html;
+                    row.parentNode.replaceChild(newRow, row);
+                    attachButtonEvents();
+                    showNotification('Damage road updated successfully');
+                    scrollToNewRow('DamageContainer', newRow);
+                } else {
+                    console.error('Row not found for update:', data.id);
+                    showNotification('Error: Updated damage road not found in table');
+                }
+            });
+
+            socket.on('newDamageRoad', function (data) {
+                if (!data || !data.id) {
+                    console.error('Invalid data or missing ID:', data);
+                    showNotification('Error: Invalid new damage road data received');
+                    return;
+                }
+
+                const tableBody = document.getElementById('damageTableBody');
+                const newRow = document.createElement('tr');
+                newRow.setAttribute('id', `damage-row-${data.id}`);
+                newRow.setAttribute('data-id', data.id);
+
                 let html = `
-                    <td data-label="Name">${data.name}</td>
-                    <td data-label="Start Location">${data.sourceName}</td>
-                    <td data-label="End Location">${data.destinationName}</td>
-                    <td data-label="Location A">${data.locationA}</td>
-                    <td data-label="Location B">${data.locationB}</td>
+                    <td data-label="Name">${data.name || 'N/A'}</td>
+                    <td data-label="Start Location">${data.sourceName || 'N/A'}</td>
+                    <td data-label="End Location">${data.destinationName || 'N/A'}</td>
+                    <td data-label="Location A">${data.locationA || 'N/A'}</td>
+                    <td data-label="Location B">${data.locationB || 'N/A'}</td>
                     <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
                     <td data-label="Actions">
                         <button class="action-button update-button" 
                             id="update-${data.id}" 
-                            data-name="${encodeURIComponent(JSON.stringify(data.name))}"
-                            data-source-name="${encodeURIComponent(JSON.stringify(data.sourceName))}"
-                            data-destination-name="${encodeURIComponent(JSON.stringify(data.destinationName))}"
-                            data-location-a="${encodeURIComponent(JSON.stringify(data.locationA))}"
-                            data-location-b="${encodeURIComponent(JSON.stringify(data.locationB))}">Update</button>
+                            data-name="${encodeURIComponent(JSON.stringify(data.name || ''))}"
+                            data-source-name="${encodeURIComponent(JSON.stringify(data.sourceName || ''))}"
+                            data-destination-name="${encodeURIComponent(JSON.stringify(data.destinationName || ''))}"
+                            data-location-a="${encodeURIComponent(JSON.stringify(data.locationA || ''))}"
+                            data-location-b="${encodeURIComponent(JSON.stringify(data.locationB || ''))}">Update</button>
                         <button class="action-button delete-button" id="delete-${data.id}">Delete</button>
                     </td>`;
-                const newRow = document.createElement('tr');
-                newRow.setAttribute('id', `damage-row-${data.id}`);
                 newRow.innerHTML = html;
-                row.parentNode.replaceChild(newRow, row);
+                tableBody.appendChild(newRow);
+
+                const totalDamageElement = document.getElementById('totalDamage');
+                const currentTotal = parseInt(totalDamageElement.innerText) || 0;
+                totalDamageElement.innerText = currentTotal + 1;
+
                 attachButtonEvents();
-                showNotification('Damage road updated successfully');
                 scrollToNewRow('DamageContainer', newRow);
-            } else {
-                console.error('Row not found for update:', data.id);
-                console.log('Expected ID:', data.id, 'Available IDs:', allRowIds);
-                showNotification('Error: Updated damage road not found in table');
-            }
+                showNotification('New damage road added successfully');
+            });
         });
-
-        socket.on('newDamageRoad', function (data) {
-            console.log('Received newDamageRoad:', JSON.stringify(data, null, 2));
-
-            if (!data || !data.id) {
-                console.error('Invalid data or missing ID:', data);
-                showNotification('Error: Invalid new damage road data received');
-                return;
-            }
-
-            const tableBody = document.getElementById('damageTableBody');
-            const newRow = document.createElement('tr');
-            newRow.setAttribute('id', `damage-row-${data.id}`);
-
-            let html = `
-                <td data-label="Name">${data.name}</td>
-                <td data-label="Start Location">${data.sourceName}</td>
-                <td data-label="End Location">${data.destinationName}</td>
-                <td data-label="Location A">${data.locationA}</td>
-                <td data-label="Location B">${data.locationB}</td>
-                <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                <td data-label="Actions">
-                    <button class="action-button update-button" 
-                        id="update-${data.id}" 
-                        data-name="${encodeURIComponent(JSON.stringify(data.name))}"
-                        data-source-name="${encodeURIComponent(JSON.stringify(data.sourceName))}"
-                        data-destination-name="${encodeURIComponent(JSON.stringify(data.destinationName))}"
-                        data-location-a="${encodeURIComponent(JSON.stringify(data.locationA))}"
-                        data-location-b="${encodeURIComponent(JSON.stringify(data.locationB))}"
-                    >Update</button>
-                    <button class="action-button delete-button" id="delete-${data.id}">Delete</button>
-                </td>`;
-            newRow.innerHTML = html;
-            tableBody.appendChild(newRow);
-
-            // Update total Damage Roads
-            const totalDamageElement = document.getElementById('totalDamage');
-            const currentTotal = parseInt(totalDamageElement.innerText) || 0;
-            totalDamageElement.innerText = currentTotal + 1;
-
-            // Re-attach event listeners to buttons
-            attachButtonEvents();
-
-            // Scroll to the new row
-            scrollToNewRow('DamageContainer', newRow);
-
-            showNotification('New damage road added successfully');
-        });
-    });
-</script>
+    </script>
 </body>
-
 </html>
