@@ -42,6 +42,7 @@ const verifyCode = async (req, res) => {
     try {
         const codeId = req.params.id
         const {code} = req.body
+        console.log(codeId, code)
         if( !codeId || !code){
             return res.status(200).json({
                 status: 'ERR',

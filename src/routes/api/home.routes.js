@@ -8,6 +8,7 @@ const detectionController = require('../../controllers/detection.controllers');
 router.get('/data-send-help', userController.getDataSendHelp);
 router.get('/map', detectionController.getMap);
 router.get('/search', detectionController.getSearch);
+router.get('/login', detectionController.getLogin);
 
 router.get('/data-hole', detectionController.getHomeHolesData);
 router.get('/data-crack', detectionController.getHomeCracksData);

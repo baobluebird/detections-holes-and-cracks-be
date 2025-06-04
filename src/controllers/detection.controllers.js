@@ -485,6 +485,17 @@ const searchListDetection = async (req, res) => {
     }
 }
 
+const getLogin = async (req, res) => {
+    try {
+        return res.render('login.ejs', {
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
+
 
 module.exports = {
     createDetection,
@@ -507,6 +518,7 @@ module.exports = {
     getHomeDamageData,
     getMap,
     getSearch,
+    getLogin,
 
     getDetailHole,
     getDetailCrack,
