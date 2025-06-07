@@ -5,10 +5,10 @@ const Damage = require("../models/damage.model");
 const dotenv = require("dotenv");
 const axios = require('axios');
 const moment = require("moment-timezone");
-
+const ExcelJS = require('exceljs');
 dotenv.config();
-const path = require("path");
-const fs = require("fs");
+const fs = require('fs');
+const path = require('path');
 const geolib = require('geolib');
 const cloudinary = require("cloudinary");
 
@@ -24,8 +24,8 @@ function getLocationCoordinates(locationStringA, locationStringB) {
 
   const startIndexB = locationStringB.indexOf("(");
   const endIndexB = locationStringB.indexOf(")");
-  
-  if (startIndexA !== -1 && endIndexA !== -1 ) {
+
+  if (startIndexA !== -1 && endIndexA !== -1) {
     const latLngStringA = locationStringA.substring(startIndexA + 1, endIndexA);
     const latLngPartsA = latLngStringA.split(", ");
 
@@ -93,12 +93,12 @@ const createDetection = async (
         });
 
         fs.unlinkSync(imagePath);
-        
+
         const url = `${process.env.URL_VPS_HOLE}/process-image?image_url=${savedImage.secure_url}`;
 
         const response = await axios.get(url);
         console.log("response", response);
-        if(response.data.result == 'No detection'){
+        if (response.data.result == 'No detection') {
           //delete hole
           await Hole.findByIdAndDelete(hole._id);
           resolve({
@@ -141,7 +141,7 @@ const createDetection = async (
         const url = `${process.env.URL_VPS_HOLE}/process-image?image_url=${savedImage.secure_url}`;
 
         const response = await axios.post(url);
-        if(response.data.result == 'No detection'){
+        if (response.data.result == 'No detection') {
           //delete hole
           await Crack.findByIdAndDelete(crack._id);
           resolve({
@@ -229,7 +229,7 @@ const createMaintainRoad = (locationA, locationB, startDate, endDate, totalDays)
   const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
-      const { latitudeA, longitudeA, latitudeB, longitudeB} = await getLocationCoordinates(locationA, locationB);
+      const { latitudeA, longitudeA, latitudeB, longitudeB } = await getLocationCoordinates(locationA, locationB);
 
       const addressA = await getAddressFromCoordinates(latitudeA, longitudeA);
       const addressB = await getAddressFromCoordinates(latitudeB, longitudeB);
@@ -241,12 +241,12 @@ const createMaintainRoad = (locationA, locationB, startDate, endDate, totalDays)
         startDate: startDate,
         endDate: endDate,
         dateMaintain: totalDays
-      }); 
+      });
 
-      if(createMaintain)    {
+      if (createMaintain) {
         io.emit('newMaintainRoad', {
           id: createMaintain._id.toString(),
-          sourceName: createMaintain.sourceName,  
+          sourceName: createMaintain.sourceName,
           destinationName: createMaintain.destinationName,
           locationA: createMaintain.locationA,
           locationB: createMaintain.locationB,
@@ -273,23 +273,23 @@ const createDamageRoad = (name, locationA, locationB) => {
   return new Promise(async (resolve, reject) => {
     try {
 
-      const { latitudeA, longitudeA, latitudeB, longitudeB} = await getLocationCoordinates(locationA, locationB);
+      const { latitudeA, longitudeA, latitudeB, longitudeB } = await getLocationCoordinates(locationA, locationB);
 
       const addressA = await getAddressFromCoordinates(latitudeA, longitudeA);
       const addressB = await getAddressFromCoordinates(latitudeB, longitudeB);
- 
+
       const createDamage = await Damage.create({
         name: name,
         sourceName: addressA,
         destinationName: addressB,
         locationA: locationA,
         locationB: locationB,
-      }); 
-      if(createDamage)    {
+      });
+      if (createDamage) {
         io.emit('newDamageRoad', {
           id: createDamage._id.toString(),
           name: createDamage.name,
-          sourceName: createDamage.sourceName,  
+          sourceName: createDamage.sourceName,
           destinationName: createDamage.destinationName,
           locationA: createDamage.locationA,
           locationB: createDamage.locationB,
@@ -332,7 +332,7 @@ const getLatLongDetection = () => {
             if (matches && matches.length === 3) {
               return [parseFloat(matches[1]), parseFloat(matches[2])];
             } else {
-              return null; 
+              return null;
             }
           })
           .filter(Boolean);
@@ -479,7 +479,7 @@ const getListForTracking = (coordinates) => {
             if (matches && matches.length === 3) {
               return { latitude: parseFloat(matches[1]), longitude: parseFloat(matches[2]) };
             } else {
-              return null; 
+              return null;
             }
           })
           .filter(Boolean);
@@ -494,7 +494,7 @@ const getListForTracking = (coordinates) => {
             if (matches && matches.length === 3) {
               return { latitude: parseFloat(matches[1]), longitude: parseFloat(matches[2]) };
             } else {
-              return null; 
+              return null;
             }
           })
           .filter(Boolean);
@@ -507,7 +507,7 @@ const getListForTracking = (coordinates) => {
             if (matches && matches.length === 3) {
               return { latitude: parseFloat(matches[1]), longitude: parseFloat(matches[2]) };
             } else {
-              return null; 
+              return null;
             }
           })
           .filter(Boolean);
@@ -516,10 +516,10 @@ const getListForTracking = (coordinates) => {
 
       const formattedLatLongLargeHole = formatLatLng(latLongLargeHole);
 
-      const formattedLatLongMaintainRoad= formatLatLngMaintainRoad(latLongMaintainRoad);
+      const formattedLatLongMaintainRoad = formatLatLngMaintainRoad(latLongMaintainRoad);
 
-      const formattedLatLongDamageRoad= formatLatLngDamageRoad(latLongDamageRoad);
-      
+      const formattedLatLongDamageRoad = formatLatLngDamageRoad(latLongDamageRoad);
+
       const allKnownCoordinatesHole = [
         ...formattedLatLongLargeHole,
       ];
@@ -560,7 +560,7 @@ const getListForTracking = (coordinates) => {
           }
         });
       });
-      
+
       coordinates.forEach((coord) => {
         allKnownCoordinatesDamageRoad.forEach((knownCoord) => {
           const distance = geolib.getDistance(
@@ -573,7 +573,7 @@ const getListForTracking = (coordinates) => {
         });
       });
 
-      
+
       resolve({
         status: "OK",
         matchingCoordinatesHole: Array.from(matchingCoordinatesHole).map(JSON.parse),
@@ -587,12 +587,12 @@ const getListForTracking = (coordinates) => {
   });
 };
 
-const getMaintainRoad =  () => {
+const getMaintainRoad = () => {
   return new Promise(async (resolve, reject) => {
     try {
       const count = await Road.countDocuments();
       const data = await Road.find()
-      if(data)    {
+      if (data) {
         resolve({
           status: "OK",
           total: count,
@@ -624,12 +624,12 @@ const getMaintainRoadForMap = () => {
   });
 };
 
-const getDamageRoad =  () => {
+const getDamageRoad = () => {
   return new Promise(async (resolve, reject) => {
     try {
       const count = await Damage.countDocuments();
       const data = await Damage.find()
-      if(data)    {
+      if (data) {
         resolve({
           status: "OK",
           total: count,
@@ -650,7 +650,7 @@ const getDamageRoadForMap = () => {
       const data = await Damage.find({
         endDate: { $gte: currentDate.toISOString().split('T')[0] }
       });
-      
+
       resolve({
         status: "OK",
         data: data,
@@ -663,11 +663,11 @@ const getDamageRoadForMap = () => {
 };
 
 const updateHole = (id, data, image) => {
-      const io = global.io;
+  const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Hole.findById(id);
-      if(!check){
+      if (!check) {
         reject({
           status: "ERR",
           message: "Hole not found",
@@ -697,15 +697,15 @@ const updateHole = (id, data, image) => {
       await Hole.findByIdAndUpdate(id, data);
       const updatedHole = await Hole.findById(id);
       io.emit('holeUpdated', {
-            id: updatedHole._id.toString(),
-            name: updatedHole.name,
-            location: updatedHole.location,
-            address: updatedHole.address,
-            description: updatedHole.description,
-            image: updatedHole.image,
-            createdAt: updatedHole.createdAt.toISOString(),
-            updatedAt: updatedHole.updatedAt.toISOString()
-        });
+        id: updatedHole._id.toString(),
+        name: updatedHole.name,
+        location: updatedHole.location,
+        address: updatedHole.address,
+        description: updatedHole.description,
+        image: updatedHole.image,
+        createdAt: updatedHole.createdAt.toISOString(),
+        updatedAt: updatedHole.updatedAt.toISOString()
+      });
       resolve({
         status: "OK",
         message: "Update hole successfully",
@@ -721,13 +721,13 @@ const updateCrack = (id, data, image) => {
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Crack.findById(id);
-      if(!check){
+      if (!check) {
         reject({
           status: "ERR",
           message: "Crack not found",
         });
       }
-      
+
       if (image) {
         const uploadsDir = path.join(__dirname, '../uploads');
         if (!fs.existsSync(uploadsDir)) {
@@ -751,14 +751,14 @@ const updateCrack = (id, data, image) => {
       await Crack.findByIdAndUpdate(id, data);
       const updateCrack = await Crack.findById(id);
       io.emit('crackUpdated', {
-                id: updateCrack._id,
-                location: updateCrack.location,
-                address: updateCrack.address,
-                description: updateCrack.description,
-                image: updateCrack.image || null,
-                createdAt: updateCrack.createdAt.toISOString(),
-                updatedAt: updateCrack.updatedAt.toISOString()
-            });
+        id: updateCrack._id,
+        location: updateCrack.location,
+        address: updateCrack.address,
+        description: updateCrack.description,
+        image: updateCrack.image || null,
+        createdAt: updateCrack.createdAt.toISOString(),
+        updatedAt: updateCrack.updatedAt.toISOString()
+      });
       resolve({
         status: "OK",
         message: "Update crack successfully",
@@ -774,7 +774,7 @@ const updateMaintain = (id, data) => {
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Road.findById(id);
-      if(!check){
+      if (!check) {
         reject({
           status: "ERR",
           message: "Maintain road not found",
@@ -784,7 +784,7 @@ const updateMaintain = (id, data) => {
       const updatedMaintain = await Road.findById(id);
       io.emit('maintainUpdated', {
         id: updatedMaintain._id.toString(),
-        sourceName: updatedMaintain.sourceName,  
+        sourceName: updatedMaintain.sourceName,
         destinationName: updatedMaintain.destinationName,
         locationA: updatedMaintain.locationA,
         locationB: updatedMaintain.locationB,
@@ -793,7 +793,7 @@ const updateMaintain = (id, data) => {
         dateMaintain: updatedMaintain.dateMaintain,
         createdAt: updatedMaintain.createdAt.toISOString(),
         updatedAt: updatedMaintain.updatedAt.toISOString()
-        });
+      });
       resolve({
         status: "OK",
         message: "Update maintain road successfully",
@@ -809,7 +809,7 @@ const updateDamage = (id, data) => {
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Damage.findById(id);
-      if(!check){
+      if (!check) {
         reject({
           status: "ERR",
           message: "Damage road not found",
@@ -820,7 +820,7 @@ const updateDamage = (id, data) => {
       io.emit('damageUpdated', {
         id: updatedDamage._id.toString(),
         name: updatedDamage.name,
-        sourceName: updatedDamage.sourceName,  
+        sourceName: updatedDamage.sourceName,
         destinationName: updatedDamage.destinationName,
         locationA: updatedDamage.locationA,
         locationB: updatedDamage.locationB,
@@ -842,7 +842,7 @@ const deleteHole = (id) => {
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Hole.findById(id);
-      if(!check){
+      if (!check) {
         reject({
           status: "ERR",
           message: "Hole not found",
@@ -865,7 +865,7 @@ const deleteCrack = (id) => {
   return new Promise(async (resolve, reject) => {
     try {
       const check = await Crack.findById(id);
-      if(!check){
+      if (!check) {
         reject({
           status: "ERR",
           message: "Crack not found",
@@ -883,36 +883,36 @@ const deleteCrack = (id) => {
   });
 };
 
-const deleteMaintain =  (id) => {
+const deleteMaintain = (id) => {
   const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
-      
+
       await Road.findByIdAndDelete(id)
       io.emit('maintainDeleted', { id });
-        resolve({
-          status: "OK",
-          message: "Delete maintain road successfully",
-        });
-      
+      resolve({
+        status: "OK",
+        message: "Delete maintain road successfully",
+      });
+
     } catch (error) {
       reject(error);
     }
   });
 };
 
-const deleteDamage =  (id) => {
+const deleteDamage = (id) => {
   const io = global.io;
   return new Promise(async (resolve, reject) => {
     try {
-      
+
       await Damage.findByIdAndDelete(id)
       io.emit('damageDeleted', { id });
-        resolve({
-          status: "OK",
-          message: "Delete damage road successfully",
-        });
-      
+      resolve({
+        status: "OK",
+        message: "Delete damage road successfully",
+      });
+
     } catch (error) {
       reject(error);
     }
@@ -956,8 +956,8 @@ const searchListDetection = (type, searchTerm) => {
           });
         }
       }
-      
-      
+
+
       if (!searchTerm || typeof searchTerm !== 'string') {
         return reject({
           status: 'ERR',
@@ -1028,6 +1028,207 @@ const searchListDetection = (type, searchTerm) => {
   });
 };
 
+const getHoleCSV = async () => {
+  try {
+    // Lấy tất cả dữ liệu từ model Hole
+    const holes = await Hole.find(); // Populate để lấy thông tin user (nếu cần)
+
+    // Tạo workbook và worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Holes');
+
+    // Định nghĩa cột trong Excel
+    worksheet.columns = [
+      { header: 'Name', key: 'name', width: 20 },
+      { header: 'User', key: 'user', width: 20 },
+      { header: 'Location', key: 'location', width: 20 },
+      { header: 'Address', key: 'address', width: 30 },
+      { header: 'Image URL', key: 'image', width: 30 },
+      { header: 'Description', key: 'description', width: 40 },
+      { header: 'Created At', key: 'createdAt', width: 20 },
+      { header: 'Updated At', key: 'updatedAt', width: 20 },
+    ];
+
+    // Thêm dữ liệu vào worksheet
+    holes.forEach(hole => {
+      worksheet.addRow({
+        name: hole.name,
+        user: hole.user, // Lấy username từ user, nếu không có thì hiển thị 'N/A'
+        location: hole.location,
+        address: hole.address,
+        image: hole.image || 'N/A',
+        description: hole.description || 'N/A',
+        createdAt: hole.createdAt ? hole.createdAt.toISOString() : 'N/A',
+        updatedAt: hole.updatedAt ? hole.updatedAt.toISOString() : 'N/A',
+      });
+    });
+
+    // Định dạng tiêu đề (header) của bảng
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Tạo file Excel
+    const fileName = `Holes_Export_${Date.now()}.xlsx`;
+    await workbook.xlsx.writeFile(fileName);
+
+    return fileName; // Trả về tên file để có thể sử dụng (ví dụ: gửi file cho client)
+  } catch (error) {
+    console.error('Error exporting holes to_excel:', error);
+    throw error;
+  }
+};
+
+const getCrackCSV = async () => {
+  try {
+    // Lấy tất cả dữ liệu từ model Hole
+    const cracks = await Crack.find(); // Populate để lấy thông tin user (nếu cần)
+
+    // Tạo workbook và worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Cracks');
+
+    // Định nghĩa cột trong Excel
+    worksheet.columns = [
+      { header: 'Name', key: 'name', width: 20 },
+      { header: 'User', key: 'user', width: 20 },
+      { header: 'Location', key: 'location', width: 20 },
+      { header: 'Address', key: 'address', width: 30 },
+      { header: 'Image URL', key: 'image', width: 30 },
+      { header: 'Description', key: 'description', width: 40 },
+      { header: 'Created At', key: 'createdAt', width: 20 },
+      { header: 'Updated At', key: 'updatedAt', width: 20 },
+    ];
+
+    // Thêm dữ liệu vào worksheet
+    cracks.forEach(crack => {
+      worksheet.addRow({
+        name: crack.name,
+        user: crack.user, // Lấy username từ user, nếu không có thì hiển thị 'N/A'
+        location: crack.location,
+        address: crack.address,
+        image: crack.image || 'N/A',
+        description: crack.description || 'N/A',
+        createdAt: crack.createdAt ? crack.createdAt.toISOString() : 'N/A',
+        updatedAt: crack.updatedAt ? crack.updatedAt.toISOString() : 'N/A',
+      });
+    });
+
+    // Định dạng tiêu đề (header) của bảng
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Tạo file Excel
+    const fileName = `Cracks_Export_${Date.now()}.xlsx`;
+    await workbook.xlsx.writeFile(fileName);
+
+    return fileName; // Trả về tên file để có thể sử dụng (ví dụ: gửi file cho client)
+  } catch (error) {
+    console.error('Error exporting cracks to_excel:', error);
+    throw error;
+  }
+};
+
+const getMaintainCSV = async () => {
+  try {
+    // Lấy tất cả dữ liệu từ model Road
+    const roads = await Road.find();
+
+    // Tạo workbook và worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Maintains');
+
+    // Định nghĩa cột trong Excel
+    worksheet.columns = [
+      { header: 'Source Name', key: 'sourceName', width: 20 },
+      { header: 'Destination Name', key: 'destinationName', width: 20 },
+      { header: 'Location A', key: 'locationA', width: 20 },
+      { header: 'Location B', key: 'locationB', width: 20 },
+      { header: 'Start Date', key: 'startDate', width: 15 },
+      { header: 'End Date', key: 'endDate', width: 15 },
+      { header: 'Date Maintain', key: 'dateMaintain', width: 15 },
+      { header: 'Created At', key: 'createdAt', width: 20 },
+      { header: 'Updated At', key: 'updatedAt', width: 20 },
+    ];
+
+    // Thêm dữ liệu vào worksheet
+    roads.forEach(road => {
+      worksheet.addRow({
+        sourceName: road.sourceName,
+        destinationName: road.destinationName,
+        locationA: road.locationA,
+        locationB: road.locationB,
+        startDate: road.startDate,
+        endDate: road.endDate,
+        dateMaintain: road.dateMaintain,
+        createdAt: road.createdAt ? road.createdAt.toISOString() : 'N/A',
+        updatedAt: road.updatedAt ? road.updatedAt.toISOString() : 'N/A',
+      });
+    });
+
+    // Định dạng tiêu đề (header) của bảng
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Tạo file Excel
+    const fileName = `Maintains_Export_${Date.now()}.xlsx`;
+    await workbook.xlsx.writeFile(fileName);
+
+    return fileName; // Trả về tên file để sử dụng (ví dụ: gửi file cho client)
+  } catch (error) {
+    console.error('Error exporting roads to Excel:', error);
+    throw error;
+  }
+};
+
+const getDamageCSV = async () => {
+  try {
+    // Lấy tất cả dữ liệu từ model Damage
+    const damages = await Damage.find();
+
+    // Tạo workbook và worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Damages');
+
+    // Định nghĩa cột trong Excel
+    worksheet.columns = [
+      { header: 'Name', key: 'name', width: 20 },
+      { header: 'Source Name', key: 'sourceName', width: 20 },
+      { header: 'Destination Name', key: 'destinationName', width: 20 },
+      { header: 'Location A', key: 'locationA', width: 20 },
+      { header: 'Location B', key: 'locationB', width: 20 },
+      { header: 'Created At', key: 'createdAt', width: 20 },
+      { header: 'Updated At', key: 'updatedAt', width: 20 },
+    ];
+
+    // Thêm dữ liệu vào worksheet
+    damages.forEach(damage => {
+      worksheet.addRow({
+        name: damage.name,
+        sourceName: damage.sourceName,
+        destinationName: damage.destinationName,
+        locationA: damage.locationA,
+        locationB: damage.locationB,
+        createdAt: damage.createdAt ? damage.createdAt.toISOString() : 'N/A',
+        updatedAt: damage.updatedAt ? damage.updatedAt.toISOString() : 'N/A',
+      });
+    });
+
+    // Định dạng tiêu đề (header) của bảng
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Tạo file Excel
+    const fileName = `Damages_Export_${Date.now()}.xlsx`;
+    await workbook.xlsx.writeFile(fileName);
+
+    return fileName; // Trả về tên file để sử dụng (ví dụ: gửi file cho client)
+  } catch (error) {
+    console.error('Error exporting damages to Excel:', error);
+    throw error;
+  }
+};
+
+
 module.exports = {
   createDetection,
   createDetectionForJetson,
@@ -1046,6 +1247,11 @@ module.exports = {
   getMaintainRoadForMap,
   getDamageRoad,
   getDamageRoadForMap,
+
+  getHoleCSV,
+  getCrackCSV,
+  getMaintainCSV,
+  getDamageCSV,
 
   updateHole,
   updateCrack,

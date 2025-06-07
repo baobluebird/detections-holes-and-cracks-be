@@ -24,6 +24,11 @@ module.exports = (upload) => {
   router.delete('/delete-maintain/:id', detectionController.deleteMaintain);
   router.delete('/delete-damage/:id', detectionController.deleteDamage);
 
+  router.get('/get-hole-csv', detectionController.getHoleCSV);
+  router.get('/get-crack-csv', detectionController.getCrackCSV);
+  router.get('/get-maintain-csv', detectionController.getMaintainCSV);
+  router.get('/get-damage-csv', detectionController.getDamageCSV);
+
   router.get('/get-maintain-road', detectionController.getMaintainRoad);
   router.get('/get-maintain-road-for-map', detectionController.getMaintainRoadForMap);
   

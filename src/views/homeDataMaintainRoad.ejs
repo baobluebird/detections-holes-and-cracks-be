@@ -278,7 +278,9 @@
         <div class="data-summary"><strong>Total Maintain Roads:</strong> <span id="totalMaintain">
                 <%= totalMaintain %>
             </span></div>
-
+        <button class="action-button export-button" id="exportButton">
+            <i class="fas fa-file-export"></i> Export Data
+        </button>
         <div class="table-container" id="MaintainContainer">
             <div class="title">Maintain Roads Data</div>
             <table>
@@ -761,6 +763,30 @@
                 scrollToNewRow('MaintainContainer', newRow);
                 showNotification('New maintain road added successfully');
             });
+        });
+        document.getElementById('exportButton').addEventListener('click', async function () {
+            try {
+                const response0245 = await fetch('/api/detection/get-maintain-csv');
+                if (!response0245.ok) {
+                    throw new Error('Failed to export data');
+                }
+                const blob = await response0245.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const DateTime = new Date();
+                // Format YYYY-MM-DD HH:mm:ss
+                const date = DateTime.toISOString().slice(0, 10) + '_' + DateTime.toTimeString().slice(0, 8).replace(/:/g, '-');
+                a.download = `maintains_data_${date}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                showNotification('Data exported successfully');
+            } catch (error) {
+                console.error('Error exporting data:', error);
+                showNotification('Error exporting data');
+            }
         });
     </script>
 </body>

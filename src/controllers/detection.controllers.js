@@ -1,7 +1,7 @@
 const DetectionServices = require('../services/detection.services')
-
+const fs = require('fs').promises;
 const axios = require('axios');
-
+const path = require('path');
 function getLocationCoordinates(locationString) {
   const startIndex = locationString.indexOf("(");
   const endIndex = locationString.indexOf(")");
@@ -496,6 +496,108 @@ const getLogin = async (req, res) => {
     }
 };
 
+const getHoleCSV = async (req, res) => {
+    try {
+        const filePath = await DetectionServices.getHoleCSV();
+        const fileName = path.basename(filePath);
+        console.log('File path:', filePath);
+        console.log('File name:', fileName);
+        res.download(filePath, fileName, async (err) => {
+            if (err) {
+                console.error('Error downloading file:', err);
+                res.status(500).json({ message: 'Error downloading file', error: err.message });
+            }
+
+            try {
+                await fs.unlink(filePath);
+                console.log(`File ${fileName} deleted from server.`);
+            } catch (deleteError) {
+                console.error('Error deleting file from server:', deleteError);
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message || 'Error exporting holes to CSV',
+        });
+    }
+};
+
+const getCrackCSV = async (req, res) => {
+    try {
+        const filePath = await DetectionServices.getCrackCSV();
+        const fileName = path.basename(filePath);
+
+        // Gửi file cho client
+        res.download(filePath, fileName, async (err) => {
+            if (err) {
+                console.error('Error downloading file:', err);
+                res.status(500).json({ message: 'Error downloading file', error: err.message });
+            }
+
+            // Xóa file sau khi gửi (dù thành công hay thất bại)
+            try {
+                await fs.unlink(filePath);
+                console.log(`File ${fileName} deleted from server.`);
+            } catch (deleteError) {
+                console.error('Error deleting file from server:', deleteError);
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message || 'Error exporting cracks to CSV',
+        });
+    }
+};
+
+const getMaintainCSV = async (req, res) => {
+    try {
+        const filePath = await DetectionServices.getMaintainCSV();
+        const fileName = path.basename(filePath);
+
+        res.download(filePath, fileName, async (err) => {
+            if (err) {
+                console.error('Error downloading file:', err);
+                res.status(500).json({ message: 'Error downloading file', error: err.message });
+            }
+
+            try {
+                await fs.unlink(filePath);
+                console.log(`File ${fileName} deleted from server.`);
+            } catch (deleteError) {
+                console.error('Error deleting file from server:', deleteError);
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message || 'Error exporting maintains to CSV',
+        });
+    }
+};
+
+const getDamageCSV = async (req, res) => {
+    try {
+        const filePath = await DetectionServices.getDamageCSV();
+        const fileName = path.basename(filePath);
+
+        res.download(filePath, fileName, async (err) => {
+            if (err) {
+                console.error('Error downloading file:', err);
+                res.status(500).json({ message: 'Error downloading file', error: err.message });
+            }
+
+            try {
+                await fs.unlink(filePath);
+                console.log(`File ${fileName} deleted from server.`);
+            } catch (deleteError) {
+                console.error('Error deleting file from server:', deleteError);
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message || 'Error exporting damages to CSV',
+        });
+    }
+};
 
 module.exports = {
     createDetection,
@@ -524,6 +626,11 @@ module.exports = {
     getDetailCrack,
     getDetailMaintain,
     getDetailDamage,
+
+    getHoleCSV,
+    getCrackCSV,
+    getMaintainCSV,
+    getDamageCSV,
     
     updateHole,
     updateCrack,
