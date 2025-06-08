@@ -5,13 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search Data</title>
-    <style>
+<style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        /* Thanh điều hướng */
         .topnav {
             background-color: #333;
             overflow: hidden;
@@ -19,15 +20,21 @@
             width: 100%;
             top: 0;
             z-index: 1000;
+            display: none; /* Ẩn mặc định */
+            height: 50px; /* Đặt chiều cao cố định để dễ tính toán */
+            line-height: 50px; /* Căn giữa nội dung theo chiều dọc */
         }
 
         .topnav a {
             float: left;
             color: #f2f2f2;
             text-align: center;
-            padding: 14px 16px;
+            padding: 0 16px; /* Bỏ padding-top/bottom để sử dụng line-height */
             text-decoration: none;
             font-size: 17px;
+            height: 100%; /* Đảm bảo link chiếm toàn bộ chiều cao */
+            display: inline-flex;
+            align-items: center;
         }
 
         .topnav a:hover {
@@ -41,8 +48,9 @@
         }
 
         .content {
-            padding-top: 60px;
+            padding-top: 60px; /* Tăng padding-top để tránh bị che bởi topnav */
             padding: 20px;
+            min-height: calc(100vh - 60px); /* Đảm bảo nội dung chiếm toàn bộ chiều cao */
         }
 
         .title {
@@ -183,7 +191,70 @@
             border-radius: 4px;
         }
 
+        #errorMessage {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #f44336;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+        }
+
+        #errorMessage.show {
+            display: block;
+        }
+
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 2000;
+            display: none;
+        }
+
+        #loading.show {
+            display: block;
+        }
+
+        /* Media queries để xử lý responsive */
         @media (max-width: 600px) {
+            .topnav {
+                height: 40px; /* Giảm chiều cao trên mobile */
+                line-height: 40px;
+            }
+
+            .topnav a {
+                font-size: 14px;
+                padding: 0 12px;
+            }
+
+            .content {
+                padding-top: 50px; /* Giảm padding-top tương ứng */
+            }
+
+            .title {
+                font-size: 20px; /* Giảm kích thước chữ trên mobile */
+            }
+
+            .search-container {
+                flex-direction: column;
+            }
+
+            .search-container select,
+            .search-container input[type="text"],
+            .search-container button {
+                width: 100%;
+            }
+
             .table-container {
                 padding: 10px 0;
             }
@@ -230,21 +301,13 @@
             #detailMap {
                 height: 200px;
             }
-
-            .search-container {
-                flex-direction: column;
-            }
-
-            .search-container select,
-            .search-container input[type="text"],
-            .search-container button {
-                width: 100%;
-            }
         }
     </style>
 </head>
 
 <body>
+    <div id="errorMessage"></div>
+    <div id="loading">Loading...</div>
     <div class="topnav">
         <a href="/home/map">Map</a>
         <a href="/home/data-hole">Holes Data</a>
@@ -292,32 +355,140 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&libraries=directions"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const socket = io();
+        // Hàm hiển thị thông báo lỗi
+        function showError(message) {
+            const errorMessageDiv = document.getElementById('errorMessage');
+            if (errorMessageDiv) {
+                errorMessageDiv.textContent = message;
+                errorMessageDiv.classList.add('show');
+                setTimeout(() => {
+                    errorMessageDiv.classList.remove('show');
+                }, 5000);
+            } else {
+                console.error('Error message div not found');
+                alert(message);
+            }
+        }
 
-            // Hàm hiển thị thông báo
-            function showNotification(message, isError = false) {
-                const notification = document.getElementById('notification');
+        // Hàm hiển thị thông báo
+        function showNotification(message, isError = false) {
+            const notification = document.getElementById('notification');
+            if (notification) {
                 notification.textContent = message;
                 notification.style.backgroundColor = isError ? '#f44336' : '#04AA6D';
                 notification.classList.add('show');
                 setTimeout(() => {
                     notification.classList.remove('show');
                 }, 3000);
+            } else {
+                console.error('Notification div not found');
+                alert(message);
+            }
+        }
+
+
+
+        // Hàm ẩn loading
+        function hideLoading() {
+            const loadingDiv = document.getElementById('loading');
+            if (loadingDiv) {
+                loadingDiv.classList.remove('show');
+            }
+        }
+
+        // Hàm kiểm tra quyền đăng nhập
+        async function checkAdminAccess() {
+            console.log('Starting admin access check');
+            const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+            console.log('Token found:', token ? 'Token exists' : 'No token');
+
+            const topnav = document.querySelector('.topnav');
+            if (!topnav) {
+                console.error('Topnav element not found');
+                showError('Lỗi: Không tìm thấy thanh điều hướng.');
+                hideLoading();
+                return { isAuthenticated: false, isAdmin: false };
             }
 
-            // Hàm parse LatLng
+            if (token) {
+                
+
+            try {
+                console.log('Sending request to /api/user/send-token');
+                const response = await fetch('/api/user/send-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token }),
+                });
+
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+
+                if (response.ok && data.status === 'OK') {
+                    console.log(data.isAdmin ? 'Admin access granted' : 'Non-admin access granted');
+                    if (data.isAdmin) {
+                        console.log('Showing full topnav for admin');
+                        topnav.style.display = 'block';
+                    } else {
+                        console.log('Showing limited topnav for non-admin');
+                        topnav.innerHTML = `
+                            <a href="/home/map">Map</a>
+                            <a class="active" href="/home/search">Search</a>
+                            <a href="/home/logout">Logout</a>
+                        `;
+                        topnav.style.display = 'block';
+                    }
+                    hideLoading();
+                    return { isAuthenticated: true, isAdmin: data.isAdmin };
+                } else {
+                    console.log('Invalid token or access denied:', data.message || 'Unknown error');
+                    showError('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+                    localStorage.removeItem('access_token');
+                    sessionStorage.removeItem('access_token');
+                    hideLoading();
+                    setTimeout(() => {
+                        window.location.href = '/home/login';
+                    }, 2000);
+                    return { isAuthenticated: false, isAdmin: false };
+                }
+            } catch (error) {
+                console.error('Fetch error:', error.message);
+                showError('Đã xảy ra lỗi khi kiểm tra đăng nhập. Vui lòng thử lại.');
+                localStorage.removeItem('access_token');
+                sessionStorage.removeItem('access_token');
+                hideLoading();
+                setTimeout(() => {
+                    window.location.href = '/home/login';
+                }, 2000);
+                return { isAuthenticated: false, isAdmin: false };
+            }
+        }
+        }
+
+        // Hàm khởi động ứng dụng
+        async function initializeApp() {
+            const { isAuthenticated } = await checkAdminAccess();
+            if (!isAuthenticated) {
+                console.log('User not authenticated, stopping app initialization');
+                return;
+            }
+
+            // Kết nối socket
+            const socket = io();
+            console.log('Socket.IO connected');
+
             // Hàm parse LatLng
             function parseLatLng(locationStr) {
                 try {
                     let lat, lng;
-                    // Match format: LatLng(latitude:XX.XXXX, longitude:YY.YYYY)
                     const labeledMatch = locationStr.match(/LatLng\(latitude:([\d.-]+),\s*longitude:([\d.-]+)\)/);
                     if (labeledMatch) {
                         lat = parseFloat(labeledMatch[1]);
                         lng = parseFloat(labeledMatch[2]);
                     } else {
-                        // Match format: LatLng(XX.XXXX, YY.YYYY)
                         const plainMatch = locationStr.match(/LatLng\(([\d.-]+),\s*([\d.-]+)\)/);
                         if (plainMatch) {
                             lat = parseFloat(plainMatch[1]);
@@ -339,6 +510,10 @@
             // Hàm khởi tạo bản đồ
             function initMap(locationA, locationB = null, mapElementId = 'detailMap') {
                 const mapElement = document.getElementById(mapElementId);
+                if (!mapElement) {
+                    console.error('Map element not found:', mapElementId);
+                    return;
+                }
                 if (!locationA) {
                     mapElement.innerHTML = '<p>Unable to display map: Invalid location</p>';
                     return;
@@ -349,7 +524,6 @@
                     mapTypeId: 'terrain'
                 });
 
-                // Single marker for hole/crack
                 if (!locationB) {
                     new google.maps.Marker({
                         position: locationA,
@@ -357,7 +531,6 @@
                         title: 'Location'
                     });
                 } else {
-                    // Markers and route for maintain/damage
                     new google.maps.Marker({
                         position: locationA,
                         map: map,
@@ -392,27 +565,36 @@
 
             // Đóng modal Detail
             function closeDetailModal() {
-                document.getElementById('detailModal').style.display = 'none';
-                document.getElementById('detailMap').innerHTML = ''; // Clear map
+                const modal = document.getElementById('detailModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    document.getElementById('detailMap').innerHTML = '';
+                }
             }
 
             // Xử lý nhấp ra ngoài để đóng modal Detail
-            document.getElementById('detailModal').addEventListener('click', function (e) {
-                if (e.target === this) {
-                    closeDetailModal();
-                }
-            });
+            const detailModal = document.getElementById('detailModal');
+            if (detailModal) {
+                detailModal.addEventListener('click', function (e) {
+                    if (e.target === this) {
+                        closeDetailModal();
+                    }
+                });
+            }
 
             // Gắn sự kiện cho nút Close
-            document.getElementById('closeDetailButton').addEventListener('click', closeDetailModal);
+            const closeDetailButton = document.getElementById('closeDetailButton');
+            if (closeDetailButton) {
+                closeDetailButton.addEventListener('click', closeDetailModal);
+            }
 
             // Hàm thực hiện tìm kiếm
             async function performSearch() {
-                const type = document.getElementById('searchType').value;
-                const searchTerm = document.getElementById('searchTerm').value.trim();
+                const type = document.getElementById('searchType')?.value;
+                const searchTerm = document.getElementById('searchTerm')?.value.trim();
 
                 if (!type || !searchTerm) {
-                    showNotification('Please select a type and enter a search term', true);
+                    showNotification('Vui lòng chọn loại và nhập từ khóa tìm kiếm', true);
                     return;
                 }
 
@@ -429,7 +611,7 @@
                     }
                 } catch (error) {
                     document.getElementById('resultsContainer').style.display = 'none';
-                    showNotification('Error performing search', true);
+                    showNotification('Lỗi khi thực hiện tìm kiếm', true);
                     console.error('Search error:', error);
                 }
             }
@@ -440,27 +622,31 @@
                 const tableBody = document.getElementById('resultsTableBody');
                 const resultsContainer = document.getElementById('resultsContainer');
 
+                if (!tableHead || !tableBody || !resultsContainer) {
+                    console.error('Table elements not found');
+                    showNotification('Lỗi giao diện bảng kết quả', true);
+                    return;
+                }
+
                 tableHead.innerHTML = '';
                 tableBody.innerHTML = '';
 
                 if (!data || data.length === 0) {
                     resultsContainer.style.display = 'none';
-                    showNotification('No results found', true);
+                    showNotification('Không tìm thấy kết quả', true);
                     return;
                 }
 
-                // Define table headers based on type
                 let headers = [];
                 if (type === 'hole' || type === 'crack') {
                     headers = ['Name', 'Address', 'Location', 'Description', 'Created At'];
                 } else if (type === 'maintain' || type === 'damage') {
                     headers = ['Name', 'Start Location', 'End Location', 'Location A', 'Location B', 'Created At'];
                     if (type === 'maintain') {
-                        headers.splice(5, 0, 'Date Maintain','Start Date', 'End Date');
+                        headers.splice(5, 0, 'Date Maintain', 'Start Date', 'End Date');
                     }
                 }
 
-                // Create table header
                 const headerRow = document.createElement('tr');
                 headers.forEach(header => {
                     const th = document.createElement('th');
@@ -469,7 +655,6 @@
                 });
                 tableHead.appendChild(headerRow);
 
-                // Create table rows
                 data.forEach(item => {
                     const row = document.createElement('tr');
                     row.setAttribute('data-id', item._id);
@@ -505,9 +690,8 @@
 
                     tableBody.appendChild(row);
 
-                    // Add click event for row to open detail modal
                     row.addEventListener('click', (e) => {
-                        if (e.target.closest('.action-button')) return; // Ignore button clicks
+                        if (e.target.closest('.action-button')) return;
                         const id = row.getAttribute('data-id');
                         const type = row.getAttribute('data-type');
                         openDetailModal(id, type);
@@ -520,16 +704,19 @@
             // Hàm hiển thị bản đồ cho hàng
             function showMap(id, type, mapElementId = 'detailMap') {
                 const row = document.querySelector(`tr[data-id="${id}"][data-type="${type}"]`);
-                if (!row) return;
+                if (!row) {
+                    console.error('Row not found for ID:', id);
+                    return;
+                }
 
                 let locationA, locationB;
                 if (type === 'hole' || type === 'crack') {
-                    const location = row.querySelector('td[data-label="Location"]').textContent;
+                    const location = row.querySelector('td[data-label="Location"]')?.textContent;
                     locationA = parseLatLng(location);
                     locationB = null;
                 } else {
-                    const locA = row.querySelector('td[data-label="Location A"]').textContent;
-                    const locB = row.querySelector('td[data-label="Location B"]').textContent;
+                    const locA = row.querySelector('td[data-label="Location A"]')?.textContent;
+                    const locB = row.querySelector('td[data-label="Location B"]')?.textContent;
                     locationA = parseLatLng(locA);
                     locationB = parseLatLng(locB);
                 }
@@ -546,6 +733,12 @@
                         const item = result.data;
                         const modalTitle = document.getElementById('detailModalTitle');
                         const detailContent = document.getElementById('detailContent');
+
+                        if (!modalTitle || !detailContent) {
+                            console.error('Modal elements not found');
+                            showNotification('Lỗi giao diện modal', true);
+                            return;
+                        }
 
                         modalTitle.textContent = `${type.charAt(0).toUpperCase() + type.slice(1)} Details`;
                         let html = '';
@@ -585,24 +778,36 @@
                         }
 
                         detailContent.innerHTML = html;
-                        document.getElementById('detailModal').style.display = 'flex';
+                        const detailModal = document.getElementById('detailModal');
+                        if (detailModal) {
+                            detailModal.style.display = 'flex';
+                        }
                     } else {
-                        showNotification(result.message || `Failed to fetch ${type} details`, true);
+                        showNotification(result.message || `Không thể lấy chi tiết ${type}`, true);
                     }
                 } catch (error) {
-                    console.error(`Error fetching ${type} details:`, error);
-                    showNotification(`Error fetching ${type} details`, true);
+                    console.error(`Lỗi khi lấy chi tiết ${type}:`, error);
+                    showNotification(`Lỗi khi lấy chi tiết ${type}`, true);
                 }
             }
 
             // Gắn sự kiện cho nút Search và Enter key
-            document.getElementById('searchButton').addEventListener('click', performSearch);
-            document.getElementById('searchTerm').addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') {
-                    performSearch();
-                }
-            });
-        });
+            const searchButton = document.getElementById('searchButton');
+            const searchTerm = document.getElementById('searchTerm');
+            if (searchButton) {
+                searchButton.addEventListener('click', performSearch);
+            }
+            if (searchTerm) {
+                searchTerm.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') {
+                        performSearch();
+                    }
+                });
+            }
+        }
+
+        // Chạy ứng dụng ngay khi tải trang
+        document.addEventListener('DOMContentLoaded', initializeApp);
     </script>
 </body>
 

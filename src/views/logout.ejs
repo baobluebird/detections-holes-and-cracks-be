@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logout</title>
+</head>
+<body>
+    <script>
+        // Xóa token từ localStorage và sessionStorage
+        localStorage.removeItem('access_token');
+        sessionStorage.removeItem('access_token');
+
+        // Kiểm tra chắc chắn token đã được xóa
+        if (!localStorage.getItem('access_token') && !sessionStorage.getItem('access_token')) {
+            // Chuyển hướng về trang login
+            window.location.href = '/home/login';
+        } else {
+            // Nếu token vẫn còn (trường hợp lỗi hiếm), thử xóa lại và redirect
+            console.error('Failed to remove access_token, retrying...');
+            localStorage.removeItem('access_token');
+            sessionStorage.removeItem('access_token');
+            window.location.href = '/home/login';
+        }
+    </script>
+</body>
+</html>

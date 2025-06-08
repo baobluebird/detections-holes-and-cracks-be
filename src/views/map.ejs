@@ -21,6 +21,8 @@
             width: 100%;
             top: 0;
             z-index: 1000;
+            display: none;
+            /* Ẩn mặc định */
         }
 
         .topnav a {
@@ -48,13 +50,16 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* Ngăn cuộn toàn trang */
+            overflow: hidden;
+            /* Ngăn cuộn toàn trang */
         }
 
         /* Container bao quanh nội dung bản đồ */
         .map-container {
-            padding-top: 60px; /* Để tránh bị che bởi topnav */
-            height: calc(100vh - 60px); /* Trừ đi chiều cao của topnav */
+            padding-top: 60px;
+            /* Để tránh bị che bởi topnav */
+            height: calc(100vh - 60px);
+            /* Trừ đi chiều cao của topnav */
             width: 100%;
             position: relative;
         }
@@ -164,7 +169,8 @@
         /* Ô tìm kiếm địa điểm */
         .search-container {
             position: absolute;
-            top: 70px; /* Dịch xuống để không bị che bởi topnav */
+            top: 70px;
+            /* Dịch xuống để không bị che bởi topnav */
             left: 10px;
             background-color: white;
             padding: 5px;
@@ -202,6 +208,7 @@
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
+
             /* Điều chỉnh topnav trên màn hình nhỏ */
             .topnav a {
                 font-size: 14px;
@@ -210,7 +217,8 @@
 
             /* Điều chỉnh map-container */
             .map-container {
-                padding-top: 50px; /* Giảm padding-top trên màn hình nhỏ */
+                padding-top: 50px;
+                /* Giảm padding-top trên màn hình nhỏ */
                 height: calc(100vh - 50px);
             }
 
@@ -218,7 +226,8 @@
             .search-container {
                 top: 60px;
                 left: 5px;
-                width: calc(100% - 20px); /* Giảm chiều rộng để vừa màn hình */
+                width: calc(100% - 20px);
+                /* Giảm chiều rộng để vừa màn hình */
                 max-width: 300px;
             }
 
@@ -272,6 +281,7 @@
         }
 
         @media (max-width: 480px) {
+
             /* Điều chỉnh topnav trên màn hình rất nhỏ */
             .topnav a {
                 font-size: 12px;
@@ -337,12 +347,48 @@
             .bottom-sheet-content {
                 font-size: 12px;
             }
+
+        }
+
+        #errorMessage {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #f44336;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+        }
+
+        #errorMessage.show {
+            display: block;
+        }
+
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+        }
+
+        #loading.show {
+            display: block;
         }
     </style>
 </head>
 
 <body>
-    <!-- Thanh điều hướng -->
+    <div id="errorMessage"></div>
+    <div id="loading">Loading...</div>
     <div class="topnav">
         <a class="active" href="/home/map">Map</a>
         <a href="/home/data-hole">Holes Data</a>
@@ -372,10 +418,14 @@
             </div>
             <div class="bottom-sheet-content">
                 <h3>Thông tin chi tiết</h3>
-                <p>Tổng số ổ gà hiện tại: <%= totalHole %></p>
-                <p>Tổng số vết nứt hiện tại: <%= totalCrack %></p>
-                <p>Tổng số đoạn đường đang bảo trì: <%= totalMaintain %></p>
-                <p>Tổng số đoạn đường đang ngập: <%= totalDamage %></p>
+                <p>Tổng số ổ gà hiện tại: <%= totalHole %>
+                </p>
+                <p>Tổng số vết nứt hiện tại: <%= totalCrack %>
+                </p>
+                <p>Tổng số đoạn đường đang bảo trì: <%= totalMaintain %>
+                </p>
+                <p>Tổng số đoạn đường đang ngập: <%= totalDamage %>
+                </p>
             </div>
         </div>
 
@@ -402,314 +452,606 @@
         <!-- Bản đồ -->
         <div id="map"></div>
     </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <!DOCTYPE html>
+    <html lang="en">
 
-    <script>
-        // Mở bottom sheet
-        document.querySelector('.open-bottom-sheet').addEventListener('click', function () {
-            document.getElementById('bottomSheet').style.bottom = '0';
-        });
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Map with Markers</title>
+        <style>
+            /* Giữ nguyên CSS của bạn */
+            #errorMessage {
+                position: fixed;
+                top: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: #f44336;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 1000;
+                display: none;
+            }
 
-        // Đóng bottom sheet
-        function closeBottomSheet() {
-            document.getElementById('bottomSheet').style.bottom = '-100%';
-        }
+            #errorMessage.show {
+                display: block;
+            }
 
-        let map;
-        const holesUrl = `<%= holesUrl %>`;
-        const cracksUrl = "<%= cracksUrl %>";
-        const maintainRoadUrl = "<%= maintainRoadUrl %>";
-        const damageRoadUrl = "<%= damageRoadUrl %>";
+            #loading {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 20px;
+                border-radius: 5px;
+                z-index: 1000;
+                display: none;
+            }
 
-        // Các đường dẫn tới hình ảnh icon
-        const largeCrackIcon = "/images/large_crack.png";
-        const largeHoleIcon = "/images/large_hole.png";
-        const fixRoadIcon = "/images/fix_road.png";
-        const damageRoadIcon = "/images/flood.png";
+            #loading.show {
+                display: block;
+            }
+        </style>
+    </head>
 
-        function initMap() {
-            // Khởi tạo bản đồ tại vị trí trung tâm
-            map = new google.maps.Map(document.getElementById("map"), {
-                center: { lat: 16.047079, lng: 108.206230 }, // Đà Nẵng
-                zoom: 12,
-                mapTypeId: 'terrain',
-                styles: [
-                    {
-                        featureType: "poi",
-                        elementType: "all",
-                        stylers: [{ visibility: "off" }]
-                    },
-                    {
-                        featureType: "road",
-                        elementType: "labels.icon",
-                        stylers: [{ visibility: "off" }]
-                    },
-                    {
-                        featureType: "transit",
-                        elementType: "all",
-                        stylers: [{ visibility: "off" }]
+    <body>
+        <div id="errorMessage"></div>
+        <div id="loading">Đang kiểm tra đăng nhập...</div>
+        <div class="topnav" style="display: none;">
+            <a class="active" href="/home/map">Map</a>
+            <a href="/home/data-hole">Holes Data</a>
+            <a href="/home/data-crack">Cracks Data</a>
+            <a href="/home/data-maintain">Maintain Road Data</a>
+            <a href="/home/data-damage">Damage Road Data</a>
+            <a href="/home/data-send-help">Home Data Send Help</a>
+            <a href="/home/search">Search</a>
+            <a href="/home/logout">Logout</a>
+        </div>
+
+        <!-- Container bao quanh nội dung bản đồ -->
+        <div class="map-container">
+            <!-- Ô tìm kiếm địa điểm -->
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Tìm kiếm địa điểm...">
+                <button onclick="searchPlace()">Tìm</button>
+            </div>
+
+            <!-- Nút mở bottom sheet -->
+            <div class="open-bottom-sheet">Detail</div>
+
+            <!-- Bottom Sheet -->
+            <div class="bottom-sheet" id="bottomSheet">
+                <div class="close-bottom-sheet">
+                    <button onclick="closeBottomSheet()">X</button>
+                </div>
+                <div class="bottom-sheet-content">
+                    <h3>Thông tin chi tiết</h3>
+                    <p>Tổng số ổ gà hiện tại: <%= totalHole %>
+                    </p>
+                    <p>Tổng số vết nứt hiện tại: <%= totalCrack %>
+                    </p>
+                    <p>Tổng số đoạn đường đang bảo trì: <%= totalMaintain %>
+                    </p>
+                    <p>Tổng số đoạn đường đang ngập: <%= totalDamage %>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Container chứa thông tin về tình trạng đường -->
+            <div class="info-container">
+                <div class="item">
+                    <img src="/images/flood.png" alt="Flood">
+                    <span>Flood</span>
+                </div>
+                <div class="item">
+                    <img src="/images/fix_road.png" alt="Maintain">
+                    <span>Maintain</span>
+                </div>
+                <div class="item">
+                    <img src="/images/large_hole.png" alt="Large Hole">
+                    <span>Large Hole</span>
+                </div>
+                <div class="item">
+                    <img src="/images/large_crack.png" alt="Large Crack">
+                    <span>Large Crack</span>
+                </div>
+            </div>
+
+            <!-- Bản đồ -->
+            <div id="map"></div>
+        </div>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            // Hàm hiển thị thông báo lỗi
+            function showError(message) {
+                const errorMessageDiv = document.getElementById('errorMessage');
+                errorMessageDiv.textContent = message;
+                errorMessageDiv.classList.add('show');
+                setTimeout(() => {
+                    errorMessageDiv.classList.remove('show');
+                }, 5000);
+            }
+
+            // Hàm hiển thị thông báo
+            function showNotification(message, isError = false) {
+                const errorMessageDiv = document.getElementById('errorMessage');
+                errorMessageDiv.textContent = message;
+                errorMessageDiv.style.backgroundColor = isError ? '#f44336' : '#04AA6D';
+                errorMessageDiv.classList.add('show');
+                setTimeout(() => {
+                    errorMessageDiv.classList.remove('show');
+                }, 3000);
+            }
+
+            // Hàm hiển thị loading
+            function showLoading(message = 'Đang kiểm tra đăng nhập...') {
+                const loadingDiv = document.getElementById('loading');
+                loadingDiv.textContent = message;
+                loadingDiv.classList.add('show');
+            }
+
+            // Hàm ẩn loading
+            function hideLoading() {
+                const loadingDiv = document.getElementById('loading');
+                loadingDiv.classList.remove('show');
+            }
+
+            // Hàm kiểm tra quyền đăng nhập
+            async function checkAdminAccess() {
+                showLoading();
+                console.log('Starting admin access check');
+                const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+                console.log('Token found:', token);
+
+                const errorMessageDiv = document.getElementById('errorMessage');
+                const topnav = document.querySelector('.topnav');
+
+                if (token) {
+                    try {
+                        console.log('Sending request to /api/user/send-token');
+                        const response = await fetch('/api/user/send-token', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ token }),
+                        });
+
+                        console.log('Response status:', response.status);
+                        const data = await response.json();
+                        console.log('Response data:', data);
+
+                        if (response.ok && data.status === 'OK') {
+                            console.log(data.isAdmin ? 'Admin access granted' : 'Non-admin access granted');
+                            if (topnav) {
+                                if (data.isAdmin) {
+                                    topnav.style.display = 'block';
+                                } else {
+                                    topnav.innerHTML = `
+                                <a class="active" href="/home/map">Map</a>
+                                <a href="/home/search">Search</a>
+                                <a href="/home/logout">Logout</a>
+                            `;
+                                    topnav.style.display = 'block';
+                                }
+                            } else {
+                                console.error('Topnav not found');
+                                showError('Lỗi: Thanh điều hướng không tồn tại.');
+                            }
+                            hideLoading();
+                            return { isAuthenticated: true, isAdmin: data.isAdmin };
+                        } else {
+                            console.log('Invalid token or access denied');
+                            showError('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+                            localStorage.removeItem('access_token');
+                            sessionStorage.removeItem('access_token');
+                            hideLoading();
+                            setTimeout(() => {
+                                window.location.href = '/home/login';
+                            }, 2000);
+                            return { isAuthenticated: false, isAdmin: false };
+                        }
+                    } catch (error) {
+                        console.error('Fetch error:', error);
+                        showError('Đã xảy ra lỗi. Vui lòng thử lại.');
+                        localStorage.removeItem('access_token');
+                        sessionStorage.removeItem('access_token');
+                        hideLoading();
+                        setTimeout(() => {
+                            window.location.href = '/home/login';
+                        }, 2000);
+                        return { isAuthenticated: false, isAdmin: false };
                     }
-                ]
-            });
+                }
+            }
 
-            // Khởi tạo ô tìm kiếm với Autocomplete
-            const input = document.getElementById("search-input");
-            const autocomplete = new google.maps.places.Autocomplete(input, {
-                types: ['geocode'], // Chỉ tìm kiếm địa chỉ
-                componentRestrictions: { country: "vn" } // Giới hạn ở Việt Nam
-            });
+            // Hàm tải Google Maps API động
+            function loadGoogleMapsScript(apiKey) {
+                return new Promise((resolve, reject) => {
+                    if (window.google && window.google.maps) {
+                        resolve();
+                        return;
+                    }
+                    const script = document.createElement('script');
+                    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap`;
+                    script.async = true;
+                    script.defer = true;
+                    script.onerror = () => reject(new Error('Failed to load Google Maps API'));
+                    document.head.appendChild(script);
+                    window.initMap = () => resolve(); // Gắn initMap vào window
+                });
+            }
 
-            // Khi người dùng chọn một địa điểm từ gợi ý
-            autocomplete.addListener("place_changed", () => {
-                const place = autocomplete.getPlace();
-                if (!place.geometry || !place.geometry.location) {
-                    console.error("Không tìm thấy địa điểm:", place);
+            // Định nghĩa các biến và hàm cho bản đồ
+            let map;
+
+            // Các đường dẫn tới hình ảnh icon
+            const largeCrackIcon = "/images/large_crack.png";
+            const largeHoleIcon = "/images/large_hole.png";
+            const fixRoadIcon = "/images/fix_road.png";
+            const damageRoadIcon = "/images/flood.png";
+
+            // Lấy giá trị từ EJS
+            const holesUrl = '<%= holesUrl %>';
+            const cracksUrl = '<%= cracksUrl %>';
+            const maintainRoadUrl = '<%= maintainRoadUrl %>';
+            const damageRoadUrl = '<%= damageRoadUrl %>';
+            const googleMapsApiKey = '<%= googleMapsApiKey %>';
+
+            // Hàm tìm kiếm địa điểm
+            function searchPlace() {
+                const input = document.getElementById("search-input").value;
+                if (!input) {
+                    showNotification("Vui lòng nhập địa điểm để tìm kiếm!", true);
                     return;
                 }
 
-                // Di chuyển bản đồ đến địa điểm được chọn
-                if (place.geometry.viewport) {
-                    map.fitBounds(place.geometry.viewport);
-                } else {
-                    map.setCenter(place.geometry.location);
-                    map.setZoom(15);
-                }
+                const geocoder = new google.maps.Geocoder();
+                geocoder.geocode({ address: input, componentRestrictions: { country: 'VN' } }, (results, status) => {
+                    if (status === "OK" && results[0]) {
+                        const location = results[0].geometry.location;
+                        map.setCenter(location);
+                        map.setZoom(15);
 
-                // Đặt marker tại địa điểm được chọn
-                new google.maps.Marker({
-                    position: place.geometry.location,
-                    map: map,
-                    title: place.name
+                        new google.maps.Marker({
+                            position: location,
+                            map: map,
+                            title: results[0].formatted_address
+                        });
+                    } else {
+                        showNotification("Không tìm thấy địa điểm: " + input, true);
+                        console.error("Geocode không thành công: " + status);
+                    }
                 });
-            });
-
-            // Lấy danh sách các tọa độ từ API và vẽ lên bản đồ
-            fetchMarkers(holesUrl, "hole");
-            fetchMarkers(cracksUrl, "crack");
-            fetchMaintainRoads(maintainRoadUrl);
-            fetchDamageRoads(damageRoadUrl);
-        }
-
-        // Hàm tìm kiếm khi nhấn nút
-        function searchPlace() {
-            const input = document.getElementById("search-input").value;
-            if (!input) {
-                alert("Vui lòng nhập địa điểm để tìm kiếm!");
-                return;
             }
 
-            const geocoder = new google.maps.Geocoder();
-            geocoder.geocode({ address: input, componentRestrictions: { country: 'VN' } }, (results, status) => {
-                if (status === "OK" && results[0]) {
-                    const location = results[0].geometry.location;
-                    map.setCenter(location);
-                    map.setZoom(15);
+            // Hàm lấy và vẽ markers
+            function fetchMarkers(url, type) {
+                if (!url || url.includes("undefined")) {
+                    console.error(`Invalid URL for ${type}:`, url);
+                    showError(`Invalid URL for ${type}`);
+                    return;
+                }
+                showLoading('Đang tải dữ liệu...');
+                fetch(url)
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then((data) => {
+                        if (data && data.data) {
+                            data.data.forEach((item) => {
+                                const locationString = item.location;
+                                const latLng = extractLatLngForHoleCrack(locationString);
 
+                                if (latLng) {
+                                    const markerIcon = getMarkerIcon(type, item.description);
+
+                                    const marker = new google.maps.Marker({
+                                        position: latLng,
+                                        map: map,
+                                        title: type === "hole" ? `${item.description} Hole` : `${item.description} Crack`,
+                                        icon: markerIcon,
+                                    });
+                                }
+                            });
+                        }
+                    })
+                    .catch((error) => {
+                        console.error(`Error fetching markers for ${type}:`, error);
+                        showError(`Error fetching markers for ${type}`);
+                    })
+                    .finally(() => hideLoading());
+            }
+
+            // Hàm lấy và vẽ đường bảo trì
+            function fetchMaintainRoads(url) {
+                if (!url || url.includes("undefined")) {
+                    console.error("Invalid URL for maintain roads:", url);
+                    showError('Invalid URL for maintain roads');
+                    return;
+                }
+                showLoading('Đang tải dữ liệu...');
+                fetch(url)
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then((data) => {
+                        if (data && data.data) {
+                            data.data.forEach((item) => {
+                                const locationA = extractLatLng(item.locationA);
+                                const locationB = extractLatLng(item.locationB);
+
+                                if (locationA && locationB) {
+                                    const roadPath = new google.maps.Polyline({
+                                        path: [locationA, locationB],
+                                        geodesic: true,
+                                        strokeColor: "#FF0000",
+                                        strokeOpacity: 1.0,
+                                        strokeWeight: 2,
+                                        map: map
+                                    });
+
+                                    const midPoint = {
+                                        lat: (locationA.lat + locationB.lat) / 2,
+                                        lng: (locationA.lng + locationB.lng) / 2
+                                    };
+
+                                    new google.maps.Marker({
+                                        position: midPoint,
+                                        map: map,
+                                        icon: {
+                                            url: fixRoadIcon,
+                                            scaledSize: new google.maps.Size(32, 32)
+                                        },
+                                        title: `Created At: ${(new Date(item.createdAt)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
+                                    });
+                                }
+                            });
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error fetching road maintenance data:", error);
+                        showError('Error fetching road maintenance data');
+                    })
+                    .finally(() => hideLoading());
+            }
+
+            // Hàm lấy và vẽ đường hư hỏng
+            function fetchDamageRoads(url) {
+                if (!url || url.includes("undefined")) {
+                    console.error("Invalid URL for damage roads:", url);
+                    showError('Invalid URL for damage roads');
+                    return;
+                }
+                showLoading('Đang tải dữ liệu...');
+                fetch(url)
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then((data) => {
+                        if (data && data.data) {
+                            data.data.forEach((item) => {
+                                const locationA = extractLatLng(item.locationA);
+                                const locationB = extractLatLng(item.locationB);
+
+                                if (locationA && locationB) {
+                                    const roadPath = new google.maps.Polyline({
+                                        path: [locationA, locationB],
+                                        geodesic: true,
+                                        strokeColor: "#00A2FFFF",
+                                        strokeOpacity: 1.0,
+                                        strokeWeight: 2,
+                                        map: map
+                                    });
+
+                                    const midPoint = {
+                                        lat: (locationA.lat + locationB.lat) / 2,
+                                        lng: (locationA.lng + locationB.lng) / 2
+                                    };
+
+                                    new google.maps.Marker({
+                                        position: midPoint,
+                                        map: map,
+                                        icon: {
+                                            url: damageRoadIcon,
+                                            scaledSize: new google.maps.Size(32, 32)
+                                        },
+                                        title: `Created At: ${(new Date(item.createdAt)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
+                                    });
+                                }
+                            });
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error fetching road damage data:", error);
+                        showError('Error fetching road damage data');
+                    })
+                    .finally(() => hideLoading());
+            }
+
+            // Hàm trích xuất tọa độ cho ổ gà và vết nứt
+            function extractLatLngForHoleCrack(locationString) {
+                const regex = /latitude:([0-9.\-]+),\s*longitude:([0-9.\-]+)/;
+                const match = locationString.match(regex);
+
+                if (match) {
+                    const lat = parseFloat(match[1]);
+                    const lng = parseFloat(match[2]);
+                    return { lat, lng };
+                }
+                return null;
+            }
+
+            // Hàm trích xuất tọa độ
+            function extractLatLng(locationString) {
+                const regex = /LatLng\(([0-9.\-]+),\s*([0-9.\-]+)\)/;
+                const match = locationString.match(regex);
+
+                if (match) {
+                    const lat = parseFloat(match[1]);
+                    const lng = parseFloat(match[2]);
+                    return { lat, lng };
+                }
+                return null;
+            }
+
+            // Hàm lấy icon cho marker
+            function getMarkerIcon(type, size) {
+                let iconUrl = "";
+                let iconSize = { width: 32, height: 32 };
+
+                if (type === "hole") {
+                    if (size === "Large") {
+                        iconUrl = largeHoleIcon;
+                        iconSize = { width: 40, height: 40 };
+                    }
+                } else if (type === "crack") {
+                    if (size === "Large") {
+                        iconUrl = largeCrackIcon;
+                        iconSize = { width: 40, height: 40 };
+                    }
+                }
+
+                return {
+                    url: iconUrl,
+                    scaledSize: new google.maps.Size(iconSize.width, iconSize.height),
+                };
+            }
+
+            // Hàm khởi tạo bản đồ
+            function initMap() {
+                // Kiểm tra API key
+                if (!googleMapsApiKey || googleMapsApiKey === 'undefined') {
+                    showError('Google Maps API key is missing or invalid.');
+                    return;
+                }
+
+                // Khởi tạo bản đồ
+                map = new google.maps.Map(document.getElementById("map"), {
+                    center: { lat: 16.047079, lng: 108.206230 }, // Đà Nẵng
+                    zoom: 12,
+                    mapTypeId: 'terrain',
+                    styles: [
+                        {
+                            featureType: "poi",
+                            elementType: "all",
+                            stylers: [{ visibility: "off" }]
+                        },
+                        {
+                            featureType: "road",
+                            elementType: "labels.icon",
+                            stylers: [{ visibility: "off" }]
+                        },
+                        {
+                            featureType: "transit",
+                            elementType: "all",
+                            stylers: [{ visibility: "off" }]
+                        }
+                    ]
+                });
+
+                // Khởi tạo ô tìm kiếm với Autocomplete
+                const input = document.getElementById("search-input");
+                const autocomplete = new google.maps.places.Autocomplete(input, {
+                    types: ['geocode'], // Chỉ tìm kiếm địa chỉ
+                    componentRestrictions: { country: "vn" } // Giới hạn ở Việt Nam
+                });
+
+                // Khi người dùng chọn một địa điểm từ gợi ý
+                autocomplete.addListener("place_changed", () => {
+                    const place = autocomplete.getPlace();
+                    if (!place.geometry || !place.geometry.location) {
+                        console.error("Không tìm thấy địa điểm:", place);
+                        return;
+                    }
+
+                    // Di chuyển bản đồ đến địa điểm được chọn
+                    if (place.geometry.viewport) {
+                        map.fitBounds(place.geometry.viewport);
+                    } else {
+                        map.setCenter(place.geometry.location);
+                        map.setZoom(15);
+                    }
+
+                    // Đặt marker tại địa điểm được chọn
                     new google.maps.Marker({
-                        position: location,
+                        position: place.geometry.location,
                         map: map,
-                        title: results[0].formatted_address
+                        title: place.name
                     });
-                } else {
-                    alert("Không tìm thấy địa điểm: " + input);
-                    console.error("Geocode không thành công: " + status);
-                }
-            });
-        }
-
-        function fetchMarkers(url, type) {
-            if (!url || url.includes("undefined")) {
-                console.error(`Invalid URL for ${type}:`, url);
-                return;
-            }
-            fetch(url)
-                .then((response) => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then((data) => {
-                    if (data && data.data) {
-                        data.data.forEach((item) => {
-                            const locationString = item.location;
-                            const latLng = extractLatLngForHoleCrack(locationString);
-
-                            if (latLng) {
-                                const markerIcon = getMarkerIcon(type, item.description);
-
-                                const marker = new google.maps.Marker({
-                                    position: latLng,
-                                    map: map,
-                                    title: type === "hole" ? `${item.description} Hole` : `${item.description} Crack`,
-                                    icon: markerIcon,
-                                });
-                            }
-                        });
-                    }
-                })
-                .catch((error) => {
-                    console.error(`Error fetching markers for ${type}:`, error);
                 });
-        }
 
-        function fetchMaintainRoads(url) {
-            if (!url || url.includes("undefined")) {
-                console.error("Invalid URL for maintain roads:", url);
-                return;
+                // Lấy dữ liệu từ API và vẽ lên bản đồ
+                fetchMarkers(holesUrl, "hole");
+                fetchMarkers(cracksUrl, "crack");
+                fetchMaintainRoads(maintainRoadUrl);
+                fetchDamageRoads(damageRoadUrl);
             }
-            fetch(url)
-                .then((response) => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then((data) => {
-                    if (data && data.data) {
-                        data.data.forEach((item) => {
-                            const locationA = extractLatLng(item.locationA);
-                            const locationB = extractLatLng(item.locationB);
 
-                            if (locationA && locationB) {
-                                const roadPath = new google.maps.Polyline({
-                                    path: [locationA, locationB],
-                                    geodesic: true,
-                                    strokeColor: "#FF0000",
-                                    strokeOpacity: 1.0,
-                                    strokeWeight: 2,
-                                    map: map
-                                });
-
-                                const midPoint = {
-                                    lat: (locationA.lat + locationB.lat) / 2,
-                                    lng: (locationA.lng + locationB.lng) / 2
-                                };
-
-                                new google.maps.Marker({
-                                    position: midPoint,
-                                    map: map,
-                                    icon: {
-                                        url: fixRoadIcon,
-                                        scaledSize: new google.maps.Size(32, 32)
-                                    },
-                                    title: `Created At: ${(new Date(item.createdAt)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
-                                });
-                            }
-                        });
-                    }
-                })
-                .catch((error) => {
-                    console.error("Error fetching road maintenance data:", error);
-                });
-        }
-
-        function fetchDamageRoads(url) {
-            if (!url || url.includes("undefined")) {
-                console.error("Invalid URL for damage roads:", url);
-                return;
-            }
-            fetch(url)
-                .then((response) => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then((data) => {
-                    if (data && data.data) {
-                        data.data.forEach((item) => {
-                            const locationA = extractLatLng(item.locationA);
-                            const locationB = extractLatLng(item.locationB);
-
-                            if (locationA && locationB) {
-                                const roadPath = new google.maps.Polyline({
-                                    path: [locationA, locationB],
-                                    geodesic: true,
-                                    strokeColor: "#00A2FFFF",
-                                    strokeOpacity: 1.0,
-                                    strokeWeight: 2,
-                                    map: map
-                                });
-
-                                const midPoint = {
-                                    lat: (locationA.lat + locationB.lat) / 2,
-                                    lng: (locationA.lng + locationB.lng) / 2
-                                };
-
-                                new google.maps.Marker({
-                                    position: midPoint,
-                                    map: map,
-                                    icon: {
-                                        url: damageRoadIcon,
-                                        scaledSize: new google.maps.Size(32, 32)
-                                    },
-                                    title: `Created At: ${(new Date(item.createdAt)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
-                                });
-                            }
-                        });
-                    }
-                })
-                .catch((error) => {
-                    console.error("Error fetching road damage data:", error);
-                });
-        }
-
-        function extractLatLngForHoleCrack(locationString) {
-            const regex = /latitude:([0-9.\-]+),\s*longitude:([0-9.\-]+)/;
-            const match = locationString.match(regex);
-
-            if (match) {
-                const lat = parseFloat(match[1]);
-                const lng = parseFloat(match[2]);
-                return { lat, lng };
-            }
-            return null;
-        }
-
-        function extractLatLng(locationString) {
-            const regex = /LatLng\(([0-9.\-]+),\s*([0-9.\-]+)\)/;
-            const match = locationString.match(regex);
-
-            if (match) {
-                const lat = parseFloat(match[1]);
-                const lng = parseFloat(match[2]);
-                return { lat, lng };
-            }
-            return null;
-        }
-
-        function getMarkerIcon(type, size) {
-            let iconUrl = "";
-            let iconSize = { width: 32, height: 32 };
-
-            if (type === "hole") {
-                if (size === "Large") {
-                    iconUrl = largeHoleIcon;
-                    iconSize = { width: 40, height: 40 };
+            // Hàm chính để khởi động ứng dụng
+            async function initializeApp() {
+                const { isAuthenticated } = await checkAdminAccess();
+                if (!isAuthenticated) {
+                    return; // Dừng nếu không đăng nhập
                 }
-            } else if (type === "crack") {
-                if (size === "Large") {
-                    iconUrl = largeCrackIcon;
-                    iconSize = { width: 40, height: 40 };
+
+                // Kiểm tra các URL API
+                if ([holesUrl, cracksUrl, maintainRoadUrl, damageRoadUrl].some(url => !url || url.includes('undefined'))) {
+                    showError('Một hoặc nhiều URL API không hợp lệ.');
+                    return;
                 }
+
+                // Tải Google Maps API
+                showLoading('Đang tải bản đồ...');
+                try {
+                    await loadGoogleMapsScript(googleMapsApiKey);
+                } catch (error) {
+                    console.error('Error loading Google Maps API:', error);
+                    showError('Không thể tải Google Maps API. Vui lòng thử lại.');
+                    hideLoading();
+                    return;
+                }
+
+                // Gắn các sự kiện sau khi bản đồ đã tải
+                const socket = io();
+
+                // Mở bottom sheet
+                document.querySelector('.open-bottom-sheet').addEventListener('click', function () {
+                    document.getElementById('bottomSheet').style.bottom = '0';
+                });
+
+                // Đóng bottom sheet
+                function closeBottomSheet() {
+                    document.getElementById('bottomSheet').style.bottom = '-100%';
+                }
+
+                // Xử lý resize để bản đồ tự động scale
+                window.addEventListener('resize', function () {
+                    if (map) {
+                        google.maps.event.trigger(map, 'resize');
+                    }
+                });
             }
 
-            return {
-                url: iconUrl,
-                scaledSize: new google.maps.Size(iconSize.width, iconSize.height),
-            };
-        }
+            // Chạy ứng dụng
+            initializeApp();
+        </script>
+        <!-- Gắn API key của Google Maps với Places API -->
+        <script async defer
+            src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&libraries=places&callback=initMap"></script>
+    </body>
 
-        // Xử lý resize để bản đồ tự động scale
-        window.addEventListener('resize', function () {
-            if (map) {
-                google.maps.event.trigger(map, 'resize');
-            }
-        });
-    </script>
-
-    <!-- Gắn API key của Google Maps với Places API -->
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&libraries=places&callback=initMap"></script>
-</body>
-
-</html>
+    </html>

@@ -12,6 +12,12 @@
             box-sizing: border-box;
         }
 
+        .topnav,
+        .content {
+            display: none;
+            /* Ẩn nội dung mặc định */
+        }
+
         .topnav {
             background-color: #333;
             overflow: hidden;
@@ -263,6 +269,7 @@
 </head>
 
 <body>
+    <div id="errorMessage"></div>
     <div class="topnav">
         <a href="/home/map">Map</a>
         <a href="/home/data-hole">Holes Data</a>
@@ -391,15 +398,106 @@
     <script src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&libraries=directions"></script>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
             const socket = io();
             let currentMaintainId = null;
+
+            // Hàm kiểm tra quyền admin
+            async function checkAdminAccess() {
+                console.log('Starting admin access check');
+                const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+                console.log('Token found:', token);
+
+                const errorMessageDiv = document.getElementById('errorMessage');
+                const content = document.querySelector('.content');
+                const topnav = document.querySelector('.topnav');
+
+                if (!token) {
+                    console.log('No token found, redirecting to login');
+                    if (errorMessageDiv) {
+                        errorMessageDiv.classList.add('show');
+                        errorMessageDiv.textContent = 'Please log in to access this page.';
+                    } else {
+                        console.error('Error message div not found');
+                        alert('Please log in to access this page.');
+                    }
+                    setTimeout(() => {
+                        window.location.href = '/home/login';
+                    }, 2000);
+                    return false;
+                }
+
+                try {
+                    console.log('Sending request to /api/user/send-token');
+                    const response = await fetch('/api/user/send-token', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ token }),
+                    });
+
+                    console.log('Response status:', response.status);
+                    const data = await response.json();
+                    console.log('Response data:', data);
+
+                    if (response.ok && data.status === 'OK' && data.isAdmin) {
+                        console.log('Admin access granted');
+                        if (content && topnav) {
+                            content.style.display = 'block';
+                            topnav.style.display = 'block';
+                        } else {
+                            console.error('Content or topnav element not found');
+                            if (errorMessageDiv) {
+                                errorMessageDiv.classList.add('show');
+                                errorMessageDiv.textContent = 'Error: Page elements missing.';
+                            } else {
+                                alert('Error: Page elements missing.');
+                            }
+                        }
+                        return true;
+                    } else {
+                        console.log('Access denied:', data.message);
+                        if (errorMessageDiv) {
+                            errorMessageDiv.classList.add('show');
+                            errorMessageDiv.textContent = data.message || 'You do not have permission to access this page.';
+                        } else {
+                            alert('You do not have permission to access this page.');
+                        }
+                        localStorage.removeItem('access_token');
+                        sessionStorage.removeItem('access_token');
+                        setTimeout(() => {
+                            window.location.href = '/home/login';
+                        }, 2000);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    if (errorMessageDiv) {
+                        errorMessageDiv.classList.add('show');
+                        errorMessageDiv.textContent = 'An error occurred. Please try again.';
+                    } else {
+                        alert('An error occurred. Please try again.');
+                    }
+                    localStorage.removeItem('access_token');
+                    sessionStorage.removeItem('access_token');
+                    setTimeout(() => {
+                        window.location.href = '/home/login';
+                    }, 2000);
+                    return false;
+                }
+            }
+
+            // Gọi kiểm tra quyền admin
+            const isAdmin = await checkAdminAccess();
+            if (!isAdmin) return; // Dừng thực thi nếu không phải admin
 
             // Hàm hiển thị thông báo
             function showNotification(message) {
                 const notification = document.getElementById('notification-maintain');
                 if (!notification) {
                     console.error('Notification element not found');
+                    alert(message);
                     return;
                 }
                 notification.textContent = message;
@@ -420,7 +518,6 @@
             // Hàm parse LatLng
             function parseLatLng(locationStr) {
                 try {
-                    // Match format: LatLng(latitude, longitude)
                     const match = locationStr.match(/LatLng\(([\d.-]+),\s*([\d.-]+)\)/);
                     if (match) {
                         return {
@@ -447,7 +544,6 @@
                     mapTypeId: 'terrain'
                 });
 
-                // Thêm marker cho điểm A và B
                 new google.maps.Marker({
                     position: startLatLng,
                     map: map,
@@ -459,11 +555,10 @@
                     title: 'Location B'
                 });
 
-                // Vẽ route giữa hai điểm
                 const directionsService = new google.maps.DirectionsService();
                 const directionsRenderer = new google.maps.DirectionsRenderer({
                     map: map,
-                    suppressMarkers: true // Không hiển thị marker mặc định của route
+                    suppressMarkers: true
                 });
 
                 directionsService.route({
@@ -536,7 +631,7 @@
             // Đóng modal Detail
             function closeDetailModal() {
                 document.getElementById('detailModal').style.display = 'none';
-                document.getElementById('detailMap').innerHTML = ''; // Clear map
+                document.getElementById('detailMap').innerHTML = '';
             }
 
             // Xử lý nhấp ra ngoài để đóng modal Update
@@ -631,7 +726,7 @@
             function attachButtonEvents() {
                 document.querySelectorAll('.delete-button').forEach(button => {
                     button.addEventListener('click', (e) => {
-                        e.stopPropagation(); // Prevent row click
+                        e.stopPropagation();
                         const id = button.id.replace('delete-', '');
                         deleteMaintain(id);
                     });
@@ -639,7 +734,7 @@
 
                 document.querySelectorAll('.update-button').forEach(button => {
                     button.addEventListener('click', (e) => {
-                        e.stopPropagation(); // Prevent row click
+                        e.stopPropagation();
                         try {
                             const id = button.id.replace('update-', '');
                             const sourceName = JSON.parse(decodeURIComponent(button.getAttribute('data-source-name')));
@@ -658,9 +753,9 @@
 
                 document.querySelectorAll('tr[data-id]').forEach(row => {
                     row.addEventListener('click', (e) => {
-                        if (e.target.closest('.action-button')) return; // Ignore button clicks
+                        if (e.target.closest('.action-button')) return;
                         const id = row.getAttribute('data-id');
-                        console.log('Row clicked with ID:', id); // Debug log
+                        console.log('Row clicked with ID:', id);
                         openDetailModal(id);
                     });
                 });
@@ -689,24 +784,24 @@
                 const row = document.querySelector(`#row-${data.id}`);
                 if (row) {
                     let html = `
-                    <td data-label="Source Name">${data.sourceName || 'N/A'}</td>
-                    <td data-label="Destination Name">${data.destinationName || 'N/A'}</td>
-                    <td data-label="Location A">${data.locationA || 'N/A'}</td>
-                    <td data-label="Location B">${data.locationB || 'N/A'}</td>
-                    <td data-label="Start Date">${new Date(data.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                    <td data-label="End Date">${new Date(data.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                    <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                    <td data-label="Actions">
-                        <button class="action-button update-button" 
-                            id="update-${data.id}" 
-                            data-source-name="${encodeURIComponent(JSON.stringify(data.sourceName || ''))}"
-                            data-destination-name="${encodeURIComponent(JSON.stringify(data.destinationName || ''))}"
-                            data-location-a="${encodeURIComponent(JSON.stringify(data.locationA || ''))}"
-                            data-location-b="${encodeURIComponent(JSON.stringify(data.locationB || ''))}"
-                            data-start-date="${data.startDate}"
-                            data-end-date="${data.endDate}">Update</button>
-                        <button class="action-button delete-button" id="delete-${data.id}">Delete</button>
-                    </td>`;
+                <td data-label="Source Name">${data.sourceName || 'N/A'}</td>
+                <td data-label="Destination Name">${data.destinationName || 'N/A'}</td>
+                <td data-label="Location A">${data.locationA || 'N/A'}</td>
+                <td data-label="Location B">${data.locationB || 'N/A'}</td>
+                <td data-label="Start Date">${new Date(data.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                <td data-label="End Date">${new Date(data.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                <td data-label="Actions">
+                    <button class="action-button update-button" 
+                        id="update-${data.id}" 
+                        data-source-name="${encodeURIComponent(JSON.stringify(data.sourceName || ''))}"
+                        data-destination-name="${encodeURIComponent(JSON.stringify(data.destinationName || ''))}"
+                        data-location-a="${encodeURIComponent(JSON.stringify(data.locationA || ''))}"
+                        data-location-b="${encodeURIComponent(JSON.stringify(data.locationB || ''))}"
+                        data-start-date="${data.startDate}"
+                        data-end-date="${data.endDate}">Update</button>
+                    <button class="action-button delete-button" id="delete-${data.id}">Delete</button>
+                </td>`;
                     const newRow = document.createElement('tr');
                     newRow.setAttribute('id', `row-${data.id}`);
                     newRow.setAttribute('data-id', data.id);
@@ -734,24 +829,24 @@
                 newRow.setAttribute('data-id', data.id);
 
                 let html = `
-                <td data-label="Source Name">${data.sourceName || 'N/A'}</td>
-                <td data-label="Destination Name">${data.destinationName || 'N/A'}</td>
-                <td data-label="Location A">${data.locationA || 'N/A'}</td>
-                <td data-label="Location B">${data.locationB || 'N/A'}</td>
-                <td data-label="Start Date">${new Date(data.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                <td data-label="End Date">${new Date(data.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                <td data-label="Actions">
-                    <button class="action-button update-button" 
-                        id="update-${data.id}" 
-                        data-source-name="${encodeURIComponent(JSON.stringify(data.sourceName || ''))}"
-                        data-destination-name="${encodeURIComponent(JSON.stringify(data.destinationName || ''))}"
-                        data-location-a="${encodeURIComponent(JSON.stringify(data.locationA || ''))}"
-                        data-location-b="${encodeURIComponent(JSON.stringify(data.locationB || ''))}"
-                        data-start-date="${data.startDate}"
-                        data-end-date="${data.endDate}">Update</button>
-                    <button class="action-button delete-button" id="delete-${data.id}">Delete</button>
-                </td>`;
+            <td data-label="Source Name">${data.sourceName || 'N/A'}</td>
+            <td data-label="Destination Name">${data.destinationName || 'N/A'}</td>
+            <td data-label="Location A">${data.locationA || 'N/A'}</td>
+            <td data-label="Location B">${data.locationB || 'N/A'}</td>
+            <td data-label="Start Date">${new Date(data.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+            <td data-label="End Date">${new Date(data.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+            <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+            <td data-label="Actions">
+                <button class="action-button update-button" 
+                    id="update-${data.id}" 
+                    data-source-name="${encodeURIComponent(JSON.stringify(data.sourceName || ''))}"
+                    data-destination-name="${encodeURIComponent(JSON.stringify(data.destinationName || ''))}"
+                    data-location-a="${encodeURIComponent(JSON.stringify(data.locationA || ''))}"
+                    data-location-b="${encodeURIComponent(JSON.stringify(data.locationB || ''))}"
+                    data-start-date="${data.startDate}"
+                    data-end-date="${data.endDate}">Update</button>
+                <button class="action-button delete-button" id="delete-${data.id}">Delete</button>
+            </td>`;
                 newRow.innerHTML = html;
                 tableBody.appendChild(newRow);
 
@@ -763,30 +858,31 @@
                 scrollToNewRow('MaintainContainer', newRow);
                 showNotification('New maintain road added successfully');
             });
-        });
-        document.getElementById('exportButton').addEventListener('click', async function () {
-            try {
-                const response0245 = await fetch('/api/detection/get-maintain-csv');
-                if (!response0245.ok) {
-                    throw new Error('Failed to export data');
+
+            // Xử lý export data
+            document.getElementById('exportButton').addEventListener('click', async function () {
+                try {
+                    const response = await fetch('/api/detection/get-maintain-csv');
+                    if (!response.ok) {
+                        throw new Error('Failed to export data');
+                    }
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const DateTime = new Date();
+                    const date = DateTime.toISOString().slice(0, 10) + '_' + DateTime.toTimeString().slice(0, 8).replace(/:/g, '-');
+                    a.download = `maintains_data_${date}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    showNotification('Data exported successfully');
+                } catch (error) {
+                    console.error('Error exporting data:', error);
+                    showNotification('Error exporting data');
                 }
-                const blob = await response0245.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                const DateTime = new Date();
-                // Format YYYY-MM-DD HH:mm:ss
-                const date = DateTime.toISOString().slice(0, 10) + '_' + DateTime.toTimeString().slice(0, 8).replace(/:/g, '-');
-                a.download = `maintains_data_${date}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-                showNotification('Data exported successfully');
-            } catch (error) {
-                console.error('Error exporting data:', error);
-                showNotification('Error exporting data');
-            }
+            });
         });
     </script>
 </body>

@@ -20,6 +20,27 @@ const createCode = async (req, res) => {
         })
     }
 }
+
+const createCodeVerifyEmail = async (req, res) => {
+    try {
+        const email = req.body.email
+        console.log(req.body.email)
+        if(!email){
+            return res.status(200).json({
+                status: 'ERR',
+                message: 'The email is required'
+            })
+        }
+        
+        const response = await CodeServices.createCodeVerifyEmail(email)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
 const resendCode = async (req, res) => {
     try {
         const email = req.body.email
@@ -50,6 +71,26 @@ const verifyCode = async (req, res) => {
             })
         }
         const response = await CodeServices.verifyCode(codeId, code)
+        return res.status(200).json(response)
+    } catch (e) {
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
+const verifyCodeEmail = async (req, res) => {
+    try {
+        const codeId = req.params.id
+        const {code} = req.body
+        console.log(codeId, code)
+        if( !codeId || !code){
+            return res.status(200).json({
+                status: 'ERR',
+                message: 'The input is required'
+            })
+        }
+        const response = await CodeServices.verifyCodeEmail(codeId, code)
         return res.status(200).json(response)
     } catch (e) {
         return res.status(404).json({
@@ -119,11 +160,57 @@ const resetPassword = async (req, res) => {
     }
 }
 
+const getForgotPassword = async (req, res) => {
+    try {
+        return res.render('forgot_password.ejs', {
+
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
+
+const getVerifyCode = async (req, res) => {
+    try {
+        const id = req.params.id;
+        console.log('id', id)
+        const {email} = await CodeServices.getEmail(id);
+        return res.render('verify_code.ejs', {
+            id: id,
+            email: email,
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
+
+const getResetPassword = async (req, res) => {
+    try {
+        return res.render('reset_password.ejs', {
+            userId: req.params.id
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
+
+
 module.exports = {
     createCode,
+    createCodeVerifyEmail,
     verifyCode,
+    verifyCodeEmail,
     createTokenEmail,
     checkTokenEmail,
     resendCode,
-    resetPassword
+    resetPassword,
+    getForgotPassword,
+    getVerifyCode,
+    getResetPassword,
 }

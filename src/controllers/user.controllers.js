@@ -1,12 +1,13 @@
-const UserService = require('../services/user.services');  
+const UserService = require('../services/user.services');
 const JwtService = require('../services/JwtService');
-
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const createUser = async (req, res) => {
     try {
-        const { name, date, email, password, confirmPassword, phone, googleId  } = req.body
+        const { name, date, email, password, confirmPassword, phone, googleId } = req.body
         const reg = /^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/
         const isCheckEmail = reg.test(email)
-        if (!name ||!date || !email || !password || !confirmPassword || !phone) {
+        if (!name || !date || !email || !password || !confirmPassword || !phone) {
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
@@ -24,40 +25,60 @@ const createUser = async (req, res) => {
         }
         const user = req.body
         const response = await UserService.createUser(user)
-        console.log('sign up',email)
+        console.log('sign up', email)
         return res.status(200).json(response)
     } catch (e) {
-        return res.status(404).json({ 
+        return res.status(404).json({
             message: e
-        }) 
+        })
     }
 }
 
 const createUserWithGoogle = async (req, res) => {
     try {
-      const { name, email, googleId } = req.body;
-  
-      if (!name || !email || !googleId) {
-        return res.status(200).json({
-          status: 'ERR',
-          message: 'Email and Google ID are required',
-        });
-      }
+        const { name, email, googleId } = req.body;
 
-      const user = req.body
-      const response = await UserService.createUserWithGoogle(user)
-      console.log('sign up',email)
-      return res.status(200).json(response)
+        if (!name || !email || !googleId) {
+            return res.status(200).json({
+                status: 'ERR',
+                message: 'Email and Google ID are required',
+            });
+        }
+
+        const user = req.body
+        const response = await UserService.createUserWithGoogle(user)
+        console.log('sign up', email)
+        return res.status(200).json(response)
     } catch (error) {
-      return res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
-  };
-  
+};
+
+const createUserWithGoogleForWeb = async (req, res) => {
+    try {
+        const { name, email, googleId } = req.body;
+
+        if (!name || !email || !googleId) {
+            return res.status(200).json({
+                status: 'ERR',
+                message: 'Email and Google ID are required',
+            });
+        }
+
+        const user = req.body
+        const response = await UserService.createUserWithGoogleForWeb(user)
+        console.log('sign up', email)
+        return res.status(200).json(response)
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
+};
+
 
 const loginUser = async (req, res) => {
     try {
-        const {email, password} = req.body
-        console.log('sign in',email)
+        const { email, password } = req.body
+        console.log('sign in', email)
         const reg = /^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/
         const isCheckEmail = reg.test(email)
         if (!email || !password) {
@@ -74,7 +95,7 @@ const loginUser = async (req, res) => {
         const response = await UserService.loginUser(req.body)
         return res.status(200).json(response)
     } catch (e) {
-        return res.status(404).json({ 
+        return res.status(404).json({
             message: e
         })
     }
@@ -82,26 +103,52 @@ const loginUser = async (req, res) => {
 
 const loginUserWithGoogle = async (req, res) => {
     try {
-      const { email, googleId } = req.body;
-  
-      if (!email || !googleId) {
-        return res.status(200).json({
-          status: 'ERR',
-          message: 'Missing email or Google ID',
-        });
-      }
-  
-      const response = await UserService.loginUserWithGoogle(req.body);
-      return res.status(200).json(response);
-  
+        const { email, googleId } = req.body;
+
+        if (!email || !googleId) {
+            return res.status(200).json({
+                status: 'ERR',
+                message: 'Missing email or Google ID',
+            });
+        }
+
+        const response = await UserService.loginUserWithGoogle(req.body);
+        return res.status(200).json(response);
+
     } catch (error) {
-      return res.status(500).json({
-        status: 'ERR',
-        message: error.message,
-      });
+        return res.status(500).json({
+            status: 'ERR',
+            message: error.message,
+        });
     }
-  };
-  
+};
+
+const loginUserWithGoogleForWeb = async (req, res) => {
+    try {
+        const { id_token, remember } = req.body;
+        if (!id_token) {
+            return res.status(400).json({ status: 'ERR', message: 'Missing Google ID token' });
+        }
+
+        // Verify id_token
+        const ticket = await client.verifyIdToken({
+            idToken: id_token,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+        const email = payload.email;
+        const googleId = payload.sub; // Unique Google user ID
+
+        // Gọi service
+        const response = await UserService.loginUserWithGoogleForWeb({ email, googleId, remember });
+        return res.status(200).json(response);
+
+    } catch (error) {
+        console.error('Google Sign-In error:', error);
+        return res.status(500).json({ status: 'ERR', message: error.message });
+    }
+};
 
 const logoutUser = async (req, res) => {
     try {
@@ -120,9 +167,9 @@ const logoutUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const userId = req.params.id;
-        const {name, date, phone, password, oldPassword} = req.body
+        const { name, date, phone, password, oldPassword } = req.body
         console.log(req.body)
-        if(!name && !date && !phone && !userId){
+        if (!name && !date && !phone && !userId) {
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
@@ -131,7 +178,7 @@ const updateUser = async (req, res) => {
         const response = await UserService.updateUser(userId, name, date, phone, password, oldPassword)
         return res.status(200).json(response)
     } catch (e) {
-        return res.status(404).json({ 
+        return res.status(404).json({
             message: e
         })
     }
@@ -140,14 +187,14 @@ const updateUser = async (req, res) => {
 const changePassword = async (req, res) => {
     try {
         const userId = req.params.id;
-        const {password, confirmPassword} = req.body;
-        if(!userId || !password || !confirmPassword ){
+        const { password, confirmPassword } = req.body;
+        if (!userId || !password || !confirmPassword) {
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
             })
         }
-        if(password !== confirmPassword){
+        if (password !== confirmPassword) {
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The password is equal confirmPassword'
@@ -165,7 +212,7 @@ const changePassword = async (req, res) => {
 const deleteUser = async (req, res) => {
     try {
         const userId = req.params.id;
-        if(!userId){
+        if (!userId) {
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
@@ -174,7 +221,7 @@ const deleteUser = async (req, res) => {
         const response = await UserService.deleteUser(userId)
         return res.status(200).json(response)
     } catch (e) {
-        return res.status(404).json({ 
+        return res.status(404).json({
             message: e
         })
     }
@@ -185,7 +232,7 @@ const getAllUser = async (req, res) => {
         const response = await UserService.getAllUser()
         return res.status(200).json(response)
     } catch (e) {
-        return res.status(404).json({ 
+        return res.status(404).json({
             message: e
         })
     }
@@ -194,7 +241,7 @@ const getAllUser = async (req, res) => {
 const getDetailsUser = async (req, res) => {
     try {
         const userId = req.params.id;
-        if(!userId){
+        if (!userId) {
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
@@ -204,7 +251,7 @@ const getDetailsUser = async (req, res) => {
         const response = await UserService.getDetailsUser(userId)
         return res.status(200).json(response)
     } catch (e) {
-        return res.status(404).json({ 
+        return res.status(404).json({
             message: e
         })
     }
@@ -214,7 +261,7 @@ const getDetailsUserWithCart = async (req, res) => {
     try {
         const userId = req.params.id;
 
-        if(!userId){
+        if (!userId) {
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
@@ -224,7 +271,7 @@ const getDetailsUserWithCart = async (req, res) => {
         const response = await UserService.getDetailsUserWithCart(userId)
         return res.status(200).json(response)
     } catch (e) {
-        return res.status(404).json({ 
+        return res.status(404).json({
             message: e
         })
     }
@@ -233,8 +280,8 @@ const getDetailsUserWithCart = async (req, res) => {
 const refreshToken = async (req, res) => {
     try {
         const token = req.headers.token.split(' ')[1];
-        
-        if(!token){
+
+        if (!token) {
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The token is required'
@@ -244,7 +291,7 @@ const refreshToken = async (req, res) => {
         const response = await JwtService.refreshTokenJwtService(token)
         return res.status(200).json(response)
     } catch (e) {
-        return res.status(404).json({ 
+        return res.status(404).json({
             message: e
         })
     }
@@ -271,7 +318,7 @@ const deleteMany = async (req, res) => {
 const decodeToken = async (req, res) => {
     try {
         const token = req.body;
-        if(!token){
+        if (!token) {
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
@@ -280,7 +327,7 @@ const decodeToken = async (req, res) => {
         const response = await UserService.decodeToken(token)
         return res.status(200).json(response)
     } catch (e) {
-        return res.status(404).json({ 
+        return res.status(404).json({
             message: e
         })
     }
@@ -289,8 +336,8 @@ const decodeToken = async (req, res) => {
 const sendHelp = async (req, res) => {
     try {
         const userId = req.params.id;
-        const {location} = req.body;
-        if(!location || !userId){
+        const { location } = req.body;
+        if (!location || !userId) {
             return res.status(200).json({
                 status: 'ERR',
                 message: 'The input is required'
@@ -299,7 +346,7 @@ const sendHelp = async (req, res) => {
         const response = await UserService.sendHelp(userId, location)
         return res.status(200).json(response)
     } catch (e) {
-        return res.status(404).json({ 
+        return res.status(404).json({
             message: e
         })
     }
@@ -308,7 +355,7 @@ const sendHelp = async (req, res) => {
 const getDataSendHelp = async (req, res) => {
     try {
         const listData = await UserService.getDataSendHelp()
-        return res.render('homeDataSendHelp.ejs',{ listData: listData.data , count : listData.data.length});
+        return res.render('homeDataSendHelp.ejs', { listData: listData.data, count: listData.data.length });
     } catch (e) {
         return res.status(404).json({
             message: e.message || 'Error fetching users',
@@ -316,11 +363,39 @@ const getDataSendHelp = async (req, res) => {
     }
 }
 
+const getLogin = async (req, res) => {
+    try {
+        return res.render('login.ejs', {
+            googleClientID: process.env.API_WEB_GOOOGLE_KEY,
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
+
+const getLogout = async (req, res) => {
+    try {
+        return res.render('logout.ejs', {
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
+
+
+
 module.exports = {
     createUser,
     createUserWithGoogle,
+    createUserWithGoogleForWeb,
     loginUser,
     loginUserWithGoogle,
+    loginUserWithGoogleForWeb,
+
     logoutUser,
     updateUser,
     changePassword,
@@ -332,5 +407,8 @@ module.exports = {
     getDetailsUserWithCart,
     decodeToken,
     sendHelp,
-    getDataSendHelp
+    getDataSendHelp,
+
+    getLogin,
+    getLogout,
 }

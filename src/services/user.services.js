@@ -168,6 +168,47 @@ const loginUser = async (data) => {
       }
     });
   };
+
+  const loginUserWithGoogleForWeb = async (data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { email, googleId } = data;
+      const checkUser = await User.findOne({ email });
+
+      if (!checkUser) {
+        return reject({
+          status: 'ERR',
+          message: 'This Email account is not registered yet.',
+        });
+      }
+
+      if (checkUser.googleId !== googleId) {
+        return resolve({
+          status: 'ERR',
+          message: 'This email account does not exist',
+        });
+      }
+
+      const access_token = await generalAccessToken({
+        id: checkUser._id,
+        isAdmin: checkUser.isAdmin,
+      });
+
+      resolve({
+        userId: checkUser._id,
+        name: checkUser.name,
+        isAdmin: checkUser.isAdmin,
+        access_token,
+        status: 'OK',
+        message: 'Login successfully',
+      });
+
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
   
 
 const getId = async (token) => {
@@ -367,7 +408,7 @@ const changePassword = async (userId, newPassword) => {
 
       // Cập nhật mật khẩu mới
       const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await User.update(userId, { password: hashedPassword });
+      await User.findByIdAndUpdate(userId, { password: hashedPassword });
 
       return {
           status: 'OK',
@@ -503,6 +544,7 @@ module.exports = {
     createUserWithGoogle,
     loginUser,
     loginUserWithGoogle,
+    loginUserWithGoogleForWeb,
     getId,
     updateUser,
     getDetailsUser,

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Verify Code</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+    <h2 class="text-xl font-bold text-center text-gray-800 mb-6">Verify Code</h2>
+
+    <div id="message" class="hidden mb-4 text-sm p-2 rounded"></div>
+
+    <form id="verifyForm" class="space-y-4">
+      <input type="hidden" id="id" value="<%= id %>">
+      <input type="hidden" id="email" value="<%= email %>">
+      <div>
+        <label for="code" class="block text-sm font-medium text-gray-700">Enter 5-digit Code</label>
+        <input type="text" id="code" required maxlength="5"
+          class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">Verify
+        Code</button>
+
+      <!-- Gửi lại mã sau 2 phút -->
+      <div class="text-center mt-3">
+        <button type="button" id="resendCode" class="text-blue-500 text-sm hover:underline">
+          Resend code
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    let codeId = '<%= id %>';
+    const email = '<%= email %>';
+    const messageBox = document.getElementById('message');
+    function showMessage(message, type = 'success', duration = 3000) {
+      messageBox.classList.remove('hidden');
+      messageBox.textContent = message;
+
+      if (type === 'success') {
+        messageBox.className = 'bg-green-100 text-green-700 p-2 rounded mb-4';
+      } else {
+        messageBox.className = 'bg-red-100 text-red-700 p-2 rounded mb-4';
+      }
+
+      // Ẩn sau thời gian
+      setTimeout(() => {
+        messageBox.classList.add('hidden');
+      }, duration);
+    }
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const code = document.getElementById('code').value;
+
+      try {
+        const res = await fetch(`/api/code/verify-code/${codeId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+
+        const data = await res.json();
+
+        messageBox.classList.remove('hidden');
+        messageBox.textContent = data.message;
+
+        if (data.status === 'OK') {
+          showMessage(data.message, 'success', 2000);
+          // Chuyển sang trang reset-password
+          setTimeout(() => {
+            window.location.href = `/home/reset-password/${data.userId}`;
+          }, 1000);
+        } else {
+          messageBox.className = 'bg-red-100 text-red-700 p-2 rounded';
+          showMessage(data.message, 'failed', 2000);
+        }
+      } catch (err) {
+        showMessage('An error occurred. Please try again.', 'error');
+      }
+    });
+
+    // Resend code
+    document.getElementById('resendCode').addEventListener('click', async () => {
+      console.log('email', email);
+      const res = await fetch('/api/code/create-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+
+      messageBox.classList.remove('hidden');
+      if (data.status === 'OK') {
+        console.log('data', data);
+        codeId = data.id; // Cập nhật codeId mới
+         showMessage(data.message, 'success', 2000);
+      } else {
+        showMessage(data.message, 'failed', 2000);
+      }
+    });
+  </script>
+</body>
+
+</html>

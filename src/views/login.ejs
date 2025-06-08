@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tải Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
   <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
@@ -15,7 +17,10 @@
 
     <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Login to Your Account</h2>
 
-    <form action="/login" method="POST" class="space-y-6">
+    <!-- Error/Success Message Container -->
+    <div id="message" class="hidden mb-4 p-4 rounded-md text-sm"></div>
+
+    <form id="loginForm" action="/sign-in" method="POST" class="space-y-6">
       <!-- Email Field -->
       <div>
         <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
@@ -64,15 +69,177 @@
       </div>
     </form>
 
+    <!-- Google Sign-In Button -->
+    <div class="mt-4">
+      <div id="g_id_onload"
+           data-client_id="<%= googleClientID %>"
+           data-callback="handleGoogleSignIn"
+           data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin"
+           data-type="standard"
+           data-size="large"
+           data-theme="outline"
+           data-text="sign_in_with"
+           data-shape="rectangular"
+           data-logo_alignment="left">
+      </div>
+    </div>
+
     <!-- Additional Links -->
     <div class="mt-4 text-center">
       <p class="text-sm text-gray-600">
-        Don't have an account? <a href="/register" class="text-blue-600 hover:underline">Sign up</a>
+        Don't have an account? <a href="/home/register" class="text-blue-600 hover:underline">Sign up</a>
       </p>
       <p class="text-sm text-gray-600">
-        Forgot your password? <a href="/forgot-password" class="text-blue-600 hover:underline">Reset it</a>
+        Forgot your password? <a href="/home/forgot-password" class="text-blue-600 hover:underline">Reset it</a>
       </p>
     </div>
   </div>
+
+  <script>
+    // Kiểm tra token khi trang được tải
+    window.addEventListener('load', async () => {
+      const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+      if (token) {
+        try {
+          const response = await fetch('/api/user/send-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token }),
+          });
+
+          const data = await response.json();
+
+          if (data.status === 'OK') {
+            // Token hợp lệ, chuyển hướng đến trang chính
+            window.location.href = '/home/map';
+          }
+          // Nếu token không hợp lệ, xóa token và tiếp tục hiển thị trang đăng nhập
+          if (data.status === 'ERR') {
+            localStorage.removeItem('access_token');
+            sessionStorage.removeItem('access_token');
+          }
+        } catch (error) {
+          console.error('Error verifying token:', error);
+          // Xóa token nếu có lỗi khi gọi API
+          localStorage.removeItem('access_token');
+          sessionStorage.removeItem('access_token');
+        }
+      }
+    });
+
+    // Xử lý form đăng nhập thông thường
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault(); // Ngăn form submit mặc định
+
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const remember = document.getElementById('remember').checked;
+      const messageDiv = document.getElementById('message');
+
+      try {
+        const response = await fetch('/api/user/sign-in', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password, remember }),
+        });
+
+        const data = await response.json();
+
+        // Xử lý phản hồi từ server
+        if (data.status === 'OK') {
+          // Hiển thị thông báo thành công
+          messageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-700');
+          messageDiv.classList.add('bg-green-100', 'text-green-700');
+          messageDiv.textContent = data.message;
+
+          // Lưu token nếu cần
+          if (data.access_token) {
+            if (remember) {
+              localStorage.setItem('access_token', data.access_token);
+            } else {
+              sessionStorage.setItem('access_token', data.access_token);
+            }
+          }
+
+          // Chuyển hướng sau khi đăng nhập thành công
+          setTimeout(() => {
+            window.location.href = '/home/map';
+          }, 1000);
+        } else {
+          // Hiển thị thông báo lỗi
+          messageDiv.classList.remove('hidden', 'bg-green-100', 'text-green-700');
+          messageDiv.classList.add('bg-red-100', 'text-red-700');
+          messageDiv.textContent = data.message;
+        }
+      } catch (error) {
+        // Xử lý lỗi khi gọi API
+        messageDiv.classList.remove('hidden', 'bg-green-100', 'text-green-700');
+        messageDiv.classList.add('bg-red-100', 'text-red-700');
+        messageDiv.textContent = 'An error occurred. Please try again.';
+        console.error('Error:', error);
+      }
+    });
+
+    // Xử lý đăng nhập bằng Google
+    window.handleGoogleSignIn = async (response) => {
+      const messageDiv = document.getElementById('message');
+      const remember = document.getElementById('remember').checked;
+
+      try {
+        // Gửi id_token từ Google tới endpoint /signup-google
+        const googleResponse = await fetch('http://saferoad.duckdns.org:3003/api/user/signin-google-for-web', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id_token: response.credential,
+            remember,
+          }),
+        });
+
+        const data = await googleResponse.json();
+
+        // Xử lý phản hồi từ server
+        if (data.status === 'OK') {
+          // Hiển thị thông báo thành công
+          messageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-700');
+          messageDiv.classList.add('bg-green-100', 'text-green-700');
+          messageDiv.textContent = data.message;
+
+          // Lưu token nếu cần
+          if (data.access_token) {
+            if (remember) {
+              localStorage.setItem('access_token', data.access_token);
+            } else {
+              sessionStorage.setItem('access_token', data.access_token);
+            }
+          }
+
+          // Chuyển hướng sau khi đăng nhập thành công
+          setTimeout(() => {
+            window.location.href = '/home/map';
+          }, 1000);
+        } else {
+          // Hiển thị thông báo lỗi
+          messageDiv.classList.remove('hidden', 'bg-green-100', 'text-green-700');
+          messageDiv.classList.add('bg-red-100', 'text-red-700');
+          messageDiv.textContent = data.message;
+        }
+      } catch (error) {
+        // Xử lý lỗi khi gọi API
+        messageDiv.classList.remove('hidden', 'bg-green-100', 'text-green-700');
+        messageDiv.classList.add('bg-red-100', 'text-red-700');
+        messageDiv.textContent = 'An error occurred during Google Sign-In. Please try again.';
+        console.error('Error:', error);
+      }
+    };
+  </script>
 </body>
 </html>

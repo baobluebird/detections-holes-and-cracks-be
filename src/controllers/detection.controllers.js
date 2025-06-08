@@ -397,6 +397,34 @@ const getMap = async (req,res) =>{
     }
 }
 
+const getMapForPublic = async (req,res) =>{
+    try{
+        const hole = await DetectionServices.getListHoles()
+
+        const crack = await DetectionServices.getListCracks()
+
+        const maintain = await DetectionServices.getMaintainRoad()
+
+        const damage = await DetectionServices.getDamageRoad()
+
+        return res.render('map_for_public.ejs',{
+            googleMapsApiKey: process.env.API_GOOGLE_KEY,
+            holesUrl: `${process.env.URL_VPS}/api/detection/get-list-holes`,
+            cracksUrl: `${process.env.URL_VPS}/api/detection/get-list-crack`,
+            maintainRoadUrl: `${process.env.URL_VPS}/api/detection/get-maintain-road`,
+            damageRoadUrl: `${process.env.URL_VPS}/api/detection/get-damage-road`,
+            totalHole: hole.total,
+            totalCrack: crack.total,
+            totalMaintain: maintain.total,
+            totalDamage: damage.total
+        } );
+    }catch(e){
+        return res.status(404).json({
+            message: e
+        })
+    }
+}
+
 const getHomeHolesData = async (req, res) => {
     try {
         const listHole = await DetectionServices.getListHoles();
@@ -485,9 +513,9 @@ const searchListDetection = async (req, res) => {
     }
 }
 
-const getLogin = async (req, res) => {
+const getHome = async (req, res) => {
     try {
-        return res.render('login.ejs', {
+        return res.render('home.ejs', {
         });
     } catch (e) {
         return res.status(404).json({
@@ -495,6 +523,9 @@ const getLogin = async (req, res) => {
         });
     }
 };
+
+
+
 
 const getHoleCSV = async (req, res) => {
     try {
@@ -618,9 +649,11 @@ module.exports = {
     getHomeHolesData,
     getHomeCracksData,
     getHomeDamageData,
+    getHome,
     getMap,
+    getMapForPublic,
     getSearch,
-    getLogin,
+
 
     getDetailHole,
     getDetailCrack,
