@@ -2,21 +2,25 @@ const Hole = require("../models/hole.model");
 const Crack = require("../models/crack.model");
 const Road = require("../models/road.model");
 const Damage = require("../models/damage.model");
-const dotenv = require("dotenv");
+
 const axios = require('axios');
 const moment = require("moment-timezone");
 const ExcelJS = require('exceljs');
+const dotenv = require("dotenv");
 dotenv.config();
 const fs = require('fs');
 const path = require('path');
 const geolib = require('geolib');
 const cloudinary = require("cloudinary");
 
+
 cloudinary.config({
   cloud_name: process.env.API_NAME_CLOUDINARY,
   api_key: process.env.API_KEY_CLOUDDINARY,
   api_secret: process.env.API_SECRET_CLOUDDINARY,
 });
+
+
 
 function getLocationCoordinates(locationStringA, locationStringB) {
   const startIndexA = locationStringA.indexOf("(");
@@ -1228,6 +1232,61 @@ const getDamageCSV = async () => {
   }
 };
 
+const getReportDetection = () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const now = new Date();
+      const timeZone = 'Asia/Ho_Chi_Minh';
+
+      const today = now.toLocaleString('vi-VN', { timeZone });
+      // Ngày đầu tháng hiện tại
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      // Ngày đầu tháng (vd: 2025-06-01T00:00:00.000Z)
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfToday = new Date(now);
+      endOfToday.setHours(23, 59, 59, 999);
+
+      // Bộ lọc thời gian cho timestamp
+      const timeFilter = {
+        createdAt: {
+          $gte: startOfMonth,
+          $lte: endOfToday
+        }
+      };
+
+      // Đếm trong tháng
+      const crackCount = await Crack.countDocuments(timeFilter);
+      const holeCount = await Hole.countDocuments(timeFilter);
+      const damageCount = await Damage.countDocuments(timeFilter);
+
+      // Lọc bảo trì có thời gian giao với tháng hiện tại
+      const maintainList = await Road.find({
+        $or: [
+          { startDate: { $gte: startOfMonth.toISOString().split('T')[0], $lte: endOfToday.toISOString().split('T')[0] } },
+          { endDate: { $gte: startOfMonth.toISOString().split('T')[0], $lte: endOfToday.toISOString().split('T')[0] } }
+        ]
+      });
+
+      resolve({
+        status: "OK",
+        dateFirstMonth: firstDayOfMonth.toISOString().split('T')[0],
+        dateToday: today,
+        crackCount,
+        holeCount,
+        damageCount,
+        maintainCount: maintainList.length,
+        maintainList,
+        moreInfo: 'http://saferoad.duckdns.org:3003/home/map'
+      });
+    } catch (error) {
+      reject({
+        status: 'ERR',
+        message: error.message || 'An error occurred during search',
+      });
+    }
+  });
+}
+
 
 module.exports = {
   createDetection,
@@ -1264,5 +1323,5 @@ module.exports = {
   deleteDamage,
 
   searchListDetection,
-
+  getReportDetection,
 };

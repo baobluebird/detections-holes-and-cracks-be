@@ -4,25 +4,17 @@ dotenv.config();
 
 const authMiddleware = (req, res, next) => {
     console.log('authMiddleware', req.headers.token)
-    const token = req.headers.token.split(' ')[1]
+    const token = req.headers.token
 
-    jwt.verify(token, process.env.ACCESS_TOKEN, function(err, user){
-        if(err){
-            return res.status(404).json({
-                status: 'ERR',
+    if (token === process.env.ADMIN_TOKEN) {
+        console.log('Admin token verified');
+        return next();
+    }else{
+        return res.status(404).json({
+                status: 'ERR', 
                 message: 'Unauthorized'
             })
-        }
-        const  {payload} = user
-        if(payload?.isAdmin){
-            next()
-        }else{
-            return res.status(404).json({
-                status: 'ERR',
-                message: 'Unauthorized'
-            })
-        }
-    });
+    }
 }
 
 const authUserMiddleware = (req, res, next) => {

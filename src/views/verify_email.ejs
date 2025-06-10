@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Email Verification</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+        <div class="text-center mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Verify Your Email</h2>
+            <p class="text-sm text-gray-600 mt-2">We’ve sent a 5-digit verification code to your email.</p>
+        </div>
+
+        <div id="message" class="hidden mb-4 p-3 rounded text-sm"></div>
+
+        <form id="verifyForm" class="space-y-4">
+            <input type="hidden" id="codeId" value="<%= id %>">
+
+            <div>
+                <label for="code" class="block text-sm font-medium text-gray-700">Verification Code</label>
+                <input type="text" id="code" name="code" required maxlength="5"
+                    class="mt-1 w-full px-4 py-2 border rounded-md" placeholder="Enter 5-digit code" />
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                Verify
+            </button>
+        </form>
+
+        <!-- Resend Section -->
+        <div class="mt-4 text-center">
+            <button id="resendBtn" class="text-blue-600 hover:underline" disabled>Resend code in <span
+                    id="timer">120</span>s</button>
+        </div>
+    </div>
+
+    <script>
+        let codeId = '<%= id %>';
+        const messageDiv = document.getElementById('message');
+        const timerSpan = document.getElementById('timer');
+        const resendBtn = document.getElementById('resendBtn');
+
+        let countdown = 120;
+        let interval;
+
+        function startTimer() {
+            resendBtn.disabled = true;
+            resendBtn.classList.add('text-gray-400', 'cursor-not-allowed');
+            interval = setInterval(() => {
+                countdown--;
+                timerSpan.textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(interval);
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = 'Resend code';
+                    resendBtn.classList.remove('text-gray-400', 'cursor-not-allowed');
+                    resendBtn.classList.add('text-blue-600');
+                }
+            }, 1000);
+        }
+
+        startTimer();
+
+        resendBtn.addEventListener('click', async () => {
+            const registerData = JSON.parse(localStorage.getItem('register_data'));
+            if (!registerData?.email) {
+                messageDiv.classList.remove('hidden');
+                messageDiv.classList.add('bg-red-100', 'text-red-700');
+                messageDiv.textContent = 'Cannot resend code. Missing email.';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/code/create-code-verify-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: registerData.email }),
+                });
+
+                const data = await res.json();
+                if (data.status === 'OK') {
+                    console.log(data);
+                    codeId = data.id;
+                    document.getElementById('codeId').value = codeId;
+
+                    // ✅ Hiển thị thông báo
+                    messageDiv.classList.remove('hidden', 'bg-red-100');
+                    messageDiv.classList.add('bg-green-100', 'text-green-700');
+                    messageDiv.textContent = 'Verification code resent successfully!';
+
+                    // ✅ Reset timer
+                    countdown = 120;
+                    timerSpan.textContent = countdown;
+                    resendBtn.textContent = 'Resend code in 120s';
+                    startTimer();
+                } else {
+                    messageDiv.classList.remove('hidden');
+                    messageDiv.classList.add('bg-red-100', 'text-red-700');
+                    messageDiv.textContent = data.message || 'Failed to resend code.';
+                }
+            } catch (err) {
+                console.error('Resend error:', err);
+                messageDiv.classList.remove('hidden');
+                messageDiv.classList.add('bg-red-100', 'text-red-700');
+                messageDiv.textContent = 'Error while resending verification code.';
+            }
+        });
+
+        document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const code = document.getElementById('code').value;
+
+            try {
+                const res = await fetch(`/api/code/verify-code-email/${codeId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code }),
+                });
+
+                const data = await res.json();
+
+                if (data.status === 'OK') {
+                    const registerData = JSON.parse(localStorage.getItem('register_data'));
+                    if (!registerData) {
+                        messageDiv.classList.remove('hidden');
+                        messageDiv.classList.add('bg-red-100', 'text-red-700');
+                        messageDiv.textContent = 'Registration data not found.';
+                        return;
+                    }
+
+                    const signupRes = await fetch('/api/user/sign-up', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(registerData),
+                    });
+
+                    const signupData = await signupRes.json();
+
+                    if (signupData.status === 'OK') {
+                        messageDiv.classList.remove('hidden', 'bg-red-100');
+                        messageDiv.classList.add('bg-green-100', 'text-green-700');
+                        messageDiv.textContent = 'Account created successfully!';
+                        localStorage.removeItem('register_data');
+                        setTimeout(() => window.location.href = '/home/login', 1500);
+                    } else {
+                        messageDiv.classList.remove('hidden', 'bg-green-100');
+                        messageDiv.classList.add('bg-red-100', 'text-red-700');
+                        messageDiv.textContent = signupData.message;
+                    }
+                } else {
+                    messageDiv.classList.remove('hidden');
+                    messageDiv.classList.add('bg-red-100', 'text-red-700');
+                    messageDiv.textContent = data.message;
+                }
+            } catch (error) {
+                messageDiv.classList.remove('hidden');
+                messageDiv.classList.add('bg-red-100', 'text-red-700');
+                messageDiv.textContent = 'Verification or registration failed.';
+            }
+        });
+    </script>
+</body>
+
+</html>

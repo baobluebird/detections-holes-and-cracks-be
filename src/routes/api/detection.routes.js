@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const detectionController = require('../../controllers/detection.controllers');
-const { authUserMiddleware } = require('../../middleware/authMiddleware');
+const { authMiddleware } = require('../../middleware/authMiddleware');
 
 module.exports = (upload) => {
   router.get('/get-detection', detectionController.getLatLongDetection);
@@ -42,6 +42,8 @@ module.exports = (upload) => {
   router.post('/create-damage-road', detectionController.createDamageRoad);
 
   router.get('/search-list-detection',detectionController.searchListDetection);
+
+  router.get('/get-report-detection', authMiddleware, detectionController.getReportDetection);
 
   return router;
 };

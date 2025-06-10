@@ -59,6 +59,7 @@ const createUser = async (data) => {
         const { email, name, googleId } = data;
   
         const checkUser = await User.findOne({ email });
+        console.log('checkUser', checkUser)
         if (checkUser) {
           return reject({
             status: 'OK',
@@ -84,7 +85,48 @@ const createUser = async (data) => {
       }
     });
   };
-  
+
+    const createUserWithGoogleForWeb = async ({ email, name, googleId }) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Kiểm tra xem người dùng đã tồn tại chưa
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return reject({
+          status: 'ERR',
+          message: 'This email is already registered.',
+        });
+      }
+
+      // Tạo tài khoản mới
+      const newUser = await User.create({
+        name,
+        email,
+        password: '', // không có mật khẩu vì dùng Google
+        phone: '',
+        date: '',
+        googleId,
+      });
+
+      // Tạo access token
+      const access_token = await generalAccessToken({
+        id: newUser._id,
+        isAdmin: newUser.isAdmin,
+      });
+
+      resolve({
+        status: 'OK',
+        message: 'User created with Google Sign-Up',
+        userId: newUser._id,
+        name: newUser.name,
+        isAdmin: newUser.isAdmin,
+        access_token,
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
 
 const loginUser = async (data) => {
     return new Promise(async (resolve, reject) => {
@@ -542,6 +584,7 @@ const getDataSendHelp = async () => {
 module.exports = {
     createUser,
     createUserWithGoogle,
+    createUserWithGoogleForWeb,
     loginUser,
     loginUserWithGoogle,
     loginUserWithGoogleForWeb,

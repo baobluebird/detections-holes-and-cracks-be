@@ -5,14 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search Data</title>
-<style>
+    <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-        /* Thanh điều hướng */
         .topnav {
             background-color: #333;
             overflow: hidden;
@@ -20,19 +19,19 @@
             width: 100%;
             top: 0;
             z-index: 1000;
-            display: none; /* Ẩn mặc định */
-            height: 50px; /* Đặt chiều cao cố định để dễ tính toán */
-            line-height: 50px; /* Căn giữa nội dung theo chiều dọc */
+            display: none;
+            height: 50px;
+            line-height: 50px;
         }
 
         .topnav a {
             float: left;
             color: #f2f2f2;
             text-align: center;
-            padding: 0 16px; /* Bỏ padding-top/bottom để sử dụng line-height */
+            padding: 0 16px;
             text-decoration: none;
             font-size: 17px;
-            height: 100%; /* Đảm bảo link chiếm toàn bộ chiều cao */
+            height: 100%;
             display: inline-flex;
             align-items: center;
         }
@@ -48,9 +47,9 @@
         }
 
         .content {
-            padding-top: 60px; /* Tăng padding-top để tránh bị che bởi topnav */
+            padding-top: 60px;
             padding: 20px;
-            min-height: calc(100vh - 60px); /* Đảm bảo nội dung chiếm toàn bộ chiều cao */
+            min-height: calc(100vh - 60px);
         }
 
         .title {
@@ -171,6 +170,21 @@
             margin: 10px 0;
         }
 
+        .modal-content label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+
+        .modal-content input,
+        .modal-content textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
         .modal-content button {
             padding: 8px 15px;
             margin: 5px;
@@ -179,9 +193,38 @@
             cursor: pointer;
         }
 
+        .modal-content .save-button {
+            background-color: #04AA6D;
+            color: white;
+        }
+
         .modal-content .cancel-button {
             background-color: #f44336;
             color: white;
+        }
+
+        .action-button {
+            padding: 5px 10px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .delete-button {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .update-button {
+            background-color: #0074f8;
+            color: white;
+        }
+
+        .image-preview {
+            max-width: 100px;
+            height: auto;
         }
 
         #detailMap {
@@ -225,10 +268,9 @@
             display: block;
         }
 
-        /* Media queries để xử lý responsive */
         @media (max-width: 600px) {
             .topnav {
-                height: 40px; /* Giảm chiều cao trên mobile */
+                height: 40px;
                 line-height: 40px;
             }
 
@@ -238,11 +280,11 @@
             }
 
             .content {
-                padding-top: 50px; /* Giảm padding-top tương ứng */
+                padding-top: 50px;
             }
 
             .title {
-                font-size: 20px; /* Giảm kích thước chữ trên mobile */
+                font-size: 20px;
             }
 
             .search-container {
@@ -285,11 +327,15 @@
                 width: 100%;
             }
 
+            .image-preview {
+                max-width: 50px;
+            }
+
             .notification {
+                font-size: 14px;
+                padding: 8px 15px;
                 top: 60px;
                 right: 10px;
-                padding: 8px 15px;
-                font-size: 14px;
             }
 
             .modal-content {
@@ -352,9 +398,31 @@
         </div>
     </div>
 
+    <div id="updateModal" class="modal">
+        <div class="modal-content">
+            <h2>Update Item</h2>
+            <form id="updateForm">
+                <label for="updateLocation">Location</label>
+                <input type="text" id="updateLocation" name="location" required>
+                <label for="updateAddress">Address</label>
+                <input type="text" id="updateAddress" name="address" required>
+                <label for="updateDescription">Description</label>
+                <textarea id="updateDescription" name="description"></textarea>
+                <label for="updateImage">Image</label>
+                <input type="file" id="updateImage" name="image" accept="image/*">
+                <button type="submit" class="save-button">Save</button>
+                <button type="button" class="cancel-button" id="cancelUpdateButton">Cancel</button>
+            </form>
+        </div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&libraries=directions"></script>
     <script>
+        let currentItemId = null;
+        let currentItemType = null;
+        let isAdmin = false;
+
         // Hàm hiển thị thông báo lỗi
         function showError(message) {
             const errorMessageDiv = document.getElementById('errorMessage');
@@ -386,8 +454,6 @@
             }
         }
 
-
-
         // Hàm ẩn loading
         function hideLoading() {
             const loadingDiv = document.getElementById('loading');
@@ -410,8 +476,15 @@
                 return { isAuthenticated: false, isAdmin: false };
             }
 
-            if (token) {
-                
+            if (!token) {
+                console.log('No token found, redirecting to login');
+                showError('Vui lòng đăng nhập để truy cập trang này.');
+                hideLoading();
+                setTimeout(() => {
+                    window.location.href = '/home/login';
+                }, 2000);
+                return { isAuthenticated: false, isAdmin: false };
+            }
 
             try {
                 console.log('Sending request to /api/user/send-token');
@@ -429,6 +502,7 @@
 
                 if (response.ok && data.status === 'OK') {
                     console.log(data.isAdmin ? 'Admin access granted' : 'Non-admin access granted');
+                    isAdmin = data.isAdmin;
                     if (data.isAdmin) {
                         console.log('Showing full topnav for admin');
                         topnav.style.display = 'block';
@@ -466,7 +540,6 @@
                 return { isAuthenticated: false, isAdmin: false };
             }
         }
-        }
 
         // Hàm khởi động ứng dụng
         async function initializeApp() {
@@ -476,7 +549,6 @@
                 return;
             }
 
-            // Kết nối socket
             const socket = io();
             console.log('Socket.IO connected');
 
@@ -484,7 +556,8 @@
             function parseLatLng(locationStr) {
                 try {
                     let lat, lng;
-                    const labeledMatch = locationStr.match(/LatLng\(latitude:([\d.-]+),\s*longitude:([\d.-]+)\)/);
+                    const labeledMatch = locationStr.match(/LatLng\(latitude:([\d.-]+),\s*longitude:([\d.-]+)\)/) || 
+                        locationStr.match(/latitude:([\d.-]+),\s*longitude:([\d.-]+)/);
                     if (labeledMatch) {
                         lat = parseFloat(labeledMatch[1]);
                         lng = parseFloat(labeledMatch[2]);
@@ -563,6 +636,37 @@
                 }
             }
 
+            // Hàm cuộn đến hàng mới hoặc cập nhật
+            function scrollToNewRow(containerId, row) {
+                const tableContainer = document.querySelector(`#${containerId}`);
+                const rowRect = row.getBoundingClientRect();
+                const containerRect = tableContainer.getBoundingClientRect();
+                tableContainer.scrollTop += rowRect.top - containerRect.top - (containerRect.height / 2) + (rowRect.height / 2);
+            }
+
+            // Mở modal Update
+            function openUpdateModal(id, type, location, address, description) {
+                try {
+                    currentItemId = id;
+                    currentItemType = type;
+                    document.getElementById('updateLocation').value = location || '';
+                    document.getElementById('updateAddress').value = address || '';
+                    document.getElementById('updateDescription').value = description || '';
+                    document.getElementById('updateImage').value = '';
+                    document.getElementById('updateModal').style.display = 'flex';
+                } catch (error) {
+                    console.error('Error in openUpdateModal:', error);
+                    showNotification('Lỗi khi mở form cập nhật', true);
+                }
+            }
+
+            // Đóng modal Update
+            function closeUpdateModal() {
+                document.getElementById('updateModal').style.display = 'none';
+                currentItemId = null;
+                currentItemType = null;
+            }
+
             // Đóng modal Detail
             function closeDetailModal() {
                 const modal = document.getElementById('detailModal');
@@ -572,20 +676,121 @@
                 }
             }
 
-            // Xử lý nhấp ra ngoài để đóng modal Detail
-            const detailModal = document.getElementById('detailModal');
-            if (detailModal) {
-                detailModal.addEventListener('click', function (e) {
-                    if (e.target === this) {
-                        closeDetailModal();
-                    }
-                });
-            }
+            // Xử lý nhấp ra ngoài để đóng modal
+            document.getElementById('updateModal').addEventListener('click', function (e) {
+                if (e.target === this) {
+                    closeUpdateModal();
+                }
+            });
 
-            // Gắn sự kiện cho nút Close
-            const closeDetailButton = document.getElementById('closeDetailButton');
-            if (closeDetailButton) {
-                closeDetailButton.addEventListener('click', closeDetailModal);
+            document.getElementById('detailModal').addEventListener('click', function (e) {
+                if (e.target === this) {
+                    closeDetailModal();
+                }
+            });
+
+            // Gắn sự kiện cho nút Cancel và Close
+           
+            document.getElementById('closeDetailButton').addEventListener('click', closeDetailModal);
+            document.getElementById('cancelUpdateButton').addEventListener('click', closeUpdateModal);
+
+            // Xử lý form Update
+            document.getElementById('updateForm').addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const formData = new FormData();
+                const location = document.getElementById('updateLocation').value;
+                const address = document.getElementById('updateAddress').value;
+                const description = document.getElementById('updateDescription').value;
+                const imageFile = document.getElementById('updateImage').files[0];
+
+                formData.append('location', location);
+                formData.append('address', address);
+                formData.append('description', description);
+                if (imageFile) {
+                    formData.append('image', imageFile);
+                }
+
+                try {
+                    document.getElementById('loading').classList.add('show');
+                    const response = await fetch(`/api/detection/update-${currentItemType}/${currentItemId}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    document.getElementById('loading').classList.remove('show');
+                    if (response.ok) {
+                        showNotification(result.message);
+                        closeUpdateModal();
+                        socket.emit('updateItem', { id: currentItemId, type: currentItemType, data: result.data });
+                        // Cập nhật giao diện ngay lập tức
+                        const row = document.querySelector(`tr[data-id="${currentItemId}"][data-type="${currentItemType}"]`);
+                        if (row) {
+                            let html = `
+                                <td data-label="Name">${result.data.name || 'N/A'}</td>
+                                <td data-label="Address">${result.data.address || 'N/A'}</td>
+                                <td data-label="Location">${result.data.location || 'N/A'}</td>
+                                <td data-label="Description">${result.data.description || 'N/A'}</td>
+                                <td data-label="Created At">${new Date(result.data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                                <td data-label="Image">${result.data.image ? `<img src="${result.data.image}" alt="${result.data.name} Image" class="image-preview" style="max-width: 100px; height: auto;">` : 'N/A'}</td>`;
+                            if (isAdmin) {
+                                html += `
+                                    <td data-label="Actions">
+                                        <button class="action-button update-button" 
+                                            data-id="${result.data._id}" 
+                                            data-type="${currentItemType}"
+                                            data-location="${encodeURIComponent(JSON.stringify(result.data.location || ''))}" 
+                                            data-address="${encodeURIComponent(JSON.stringify(result.data.address || ''))}" 
+                                            data-description="${encodeURIComponent(JSON.stringify(result.data.description || ''))}">Edit</button>
+                                        <button class="action-button delete-button" data-id="${result.data._id}" data-type="${currentItemType}">Delete</button>
+                                    </td>`;
+                            }
+                            const newRow = document.createElement('tr');
+                            newRow.setAttribute('data-id', result.data._id);
+                            newRow.setAttribute('data-type', currentItemType);
+                            newRow.innerHTML = html;
+                            row.parentNode.replaceChild(newRow, row);
+                            attachRowEvents();
+                            scrollToNewRow('resultsContainer', newRow);
+                        }
+                    } else {
+                        showNotification(result.message || `Lỗi khi cập nhật ${currentItemType}`, true);
+                    }
+                } catch (error) {
+                    document.getElementById('loading').classList.remove('show');
+                    showNotification(`Lỗi khi cập nhật ${currentItemType}`, true);
+                    console.error('Error:', error);
+                }
+            });
+
+            // Xử lý xóa item
+            async function deleteItem(id, type) {
+                if (!confirm(`Bạn có chắc chắn muốn xóa ${type} này?`)) return;
+                try {
+                    document.getElementById('loading').classList.add('show');
+                    const response = await fetch(`/api/detection/delete-${type}/${id}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    document.getElementById('loading').classList.remove('show');
+                    if (response.ok) {
+                        showNotification(result.message);
+                        socket.emit('deleteItem', { id, type });
+                        // Cập nhật giao diện ngay lập tức
+                        const row = document.querySelector(`tr[data-id="${id}"][data-type="${type}"]`);
+                        if (row) {
+                            row.remove();
+                            if (!document.querySelector('#resultsTableBody tr')) {
+                                document.getElementById('resultsContainer').style.display = 'none';
+                            }
+                        }
+                    } else {
+                        showNotification(result.message || `Lỗi khi xóa ${type}`, true);
+                    }
+                } catch (error) {
+                    document.getElementById('loading').classList.remove('show');
+                    showNotification(`Lỗi khi xóa ${type}`, true);
+                    console.error('Error:', error);
+                }
             }
 
             // Hàm thực hiện tìm kiếm
@@ -599,8 +804,10 @@
                 }
 
                 try {
+                    document.getElementById('loading').classList.add('show');
                     const response = await fetch(`/api/detection/search-list-detection?type=${encodeURIComponent(type)}&term=${encodeURIComponent(searchTerm)}`);
                     const result = await response.json();
+                    document.getElementById('loading').classList.remove('show');
 
                     if (result.status === 'OK') {
                         displaySearchResults(type, result.data);
@@ -610,6 +817,7 @@
                         showNotification(result.message, true);
                     }
                 } catch (error) {
+                    document.getElementById('loading').classList.remove('show');
                     document.getElementById('resultsContainer').style.display = 'none';
                     showNotification('Lỗi khi thực hiện tìm kiếm', true);
                     console.error('Search error:', error);
@@ -639,12 +847,12 @@
 
                 let headers = [];
                 if (type === 'hole' || type === 'crack') {
-                    headers = ['Name', 'Address', 'Location', 'Description', 'Created At'];
-                } else if (type === 'maintain' || type === 'damage') {
+                    headers = ['Name', 'Address', 'Location', 'Description', 'Created At', 'Image'];
+                    if (isAdmin) headers.push('Actions');
+                } else if (type === 'maintain') {
+                    headers = ['Name', 'Start Location', 'End Location', 'Location A', 'Location B', 'Date Maintain', 'Start Date', 'End Date', 'Created At'];
+                } else if (type === 'damage') {
                     headers = ['Name', 'Start Location', 'End Location', 'Location A', 'Location B', 'Created At'];
-                    if (type === 'maintain') {
-                        headers.splice(5, 0, 'Date Maintain', 'Start Date', 'End Date');
-                    }
                 }
 
                 const headerRow = document.createElement('tr');
@@ -661,12 +869,26 @@
                     row.setAttribute('data-type', type);
 
                     if (type === 'hole' || type === 'crack') {
-                        row.innerHTML = `
+                        let html = `
                             <td data-label="Name">${item.name || 'N/A'}</td>
                             <td data-label="Address">${item.address || 'N/A'}</td>
                             <td data-label="Location">${item.location || 'N/A'}</td>
                             <td data-label="Description">${item.description || 'N/A'}</td>
-                            <td data-label="Created At">${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>`;
+                            <td data-label="Created At">${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                            <td data-label="Image">${item.image ? `<img src="${item.image}" alt="${item.name} Image" class="image-preview" style="max-width: 100px; height: auto;">` : 'N/A'}</td>`;
+                        if (isAdmin) {
+                            html += `
+                                <td data-label="Actions">
+                                    <button class="action-button update-button" 
+                                        data-id="${item._id}" 
+                                        data-type="${type}"
+                                        data-location="${encodeURIComponent(JSON.stringify(item.location || ''))}" 
+                                        data-address="${encodeURIComponent(JSON.stringify(item.address || ''))}" 
+                                        data-description="${encodeURIComponent(JSON.stringify(item.description || ''))}">Edit</button>
+                                    <button class="action-button delete-button" data-id="${item._id}" data-type="${type}">Delete</button>
+                                </td>`;
+                        }
+                        row.innerHTML = html;
                     } else if (type === 'maintain') {
                         row.innerHTML = `
                             <td data-label="Name">${item.sourceName || 'N/A'}</td>
@@ -689,46 +911,66 @@
                     }
 
                     tableBody.appendChild(row);
-
-                    row.addEventListener('click', (e) => {
-                        if (e.target.closest('.action-button')) return;
-                        const id = row.getAttribute('data-id');
-                        const type = row.getAttribute('data-type');
-                        openDetailModal(id, type);
-                    });
                 });
 
+                attachRowEvents();
                 resultsContainer.style.display = 'block';
             }
 
-            // Hàm hiển thị bản đồ cho hàng
-            function showMap(id, type, mapElementId = 'detailMap') {
-                const row = document.querySelector(`tr[data-id="${id}"][data-type="${type}"]`);
-                if (!row) {
-                    console.error('Row not found for ID:', id);
-                    return;
+            // Gắn sự kiện cho các nút và hàng
+            function attachRowEvents() {
+                document.querySelectorAll('.delete-button').forEach(button => {
+                    button.removeEventListener('click', handleDelete); // Tránh gắn lặp sự kiện
+                    button.addEventListener('click', handleDelete);
+                });
+
+                document.querySelectorAll('.update-button').forEach(button => {
+                    button.removeEventListener('click', handleUpdate); // Tránh gắn lặp sự kiện
+                    button.addEventListener('click', handleUpdate);
+                });
+
+                document.querySelectorAll('tr[data-id]').forEach(row => {
+                    row.removeEventListener('click', handleRowClick); // Tránh gắn lặp sự kiện
+                    row.addEventListener('click', handleRowClick);
+                });
+
+                function handleDelete(e) {
+                    e.stopPropagation();
+                    const id = e.target.getAttribute('data-id');
+                    const type = e.target.getAttribute('data-type');
+                    deleteItem(id, type);
                 }
 
-                let locationA, locationB;
-                if (type === 'hole' || type === 'crack') {
-                    const location = row.querySelector('td[data-label="Location"]')?.textContent;
-                    locationA = parseLatLng(location);
-                    locationB = null;
-                } else {
-                    const locA = row.querySelector('td[data-label="Location A"]')?.textContent;
-                    const locB = row.querySelector('td[data-label="Location B"]')?.textContent;
-                    locationA = parseLatLng(locA);
-                    locationB = parseLatLng(locB);
+                function handleUpdate(e) {
+                    e.stopPropagation();
+                    try {
+                        const id = e.target.getAttribute('data-id');
+                        const type = e.target.getAttribute('data-type');
+                        const location = JSON.parse(decodeURIComponent(e.target.getAttribute('data-location')));
+                        const address = JSON.parse(decodeURIComponent(e.target.getAttribute('data-address')));
+                        const description = JSON.parse(decodeURIComponent(e.target.getAttribute('data-description')));
+                        openUpdateModal(id, type, location, address, description);
+                    } catch (error) {
+                        console.error('Error parsing JSON:', error);
+                        showNotification('Lỗi khi mở form cập nhật', true);
+                    }
                 }
 
-                initMap(locationA, locationB, mapElementId);
+                function handleRowClick(e) {
+                    if (e.target.closest('.action-button')) return;
+                    const id = e.target.closest('tr').getAttribute('data-id');
+                    const type = e.target.closest('tr').getAttribute('data-type');
+                    openDetailModal(id, type);
+                }
             }
 
             // Mở modal Detail
             async function openDetailModal(id, type) {
                 try {
+                    document.getElementById('loading').classList.add('show');
                     const response = await fetch(`/api/detection/get-detail-${type}/${id}`);
                     const result = await response.json();
+                    document.getElementById('loading').classList.remove('show');
                     if (response.ok && result.status === 'OK') {
                         const item = result.data;
                         const modalTitle = document.getElementById('detailModalTitle');
@@ -748,7 +990,8 @@
                                 <p><strong>Address:</strong> ${item.address || 'N/A'}</p>
                                 <p><strong>Location:</strong> ${item.location || 'N/A'}</p>
                                 <p><strong>Description:</strong> ${item.description || 'N/A'}</p>
-                                <p><strong>Created At:</strong> ${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>`;
+                                <p><strong>Created At:</strong> ${new Date(item.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
+                                <p><strong>Image:</strong> ${item.image ? `<img src="${item.image}" alt="${item.name} Image" style="max-width: 100%; height: auto; border-radius: 4px;">` : 'N/A'}</p>`;
                             const locationA = parseLatLng(item.location);
                             initMap(locationA);
                         } else if (type === 'maintain') {
@@ -786,10 +1029,61 @@
                         showNotification(result.message || `Không thể lấy chi tiết ${type}`, true);
                     }
                 } catch (error) {
+                    document.getElementById('loading').classList.remove('show');
                     console.error(`Lỗi khi lấy chi tiết ${type}:`, error);
                     showNotification(`Lỗi khi lấy chi tiết ${type}`, true);
                 }
             }
+
+            // Xử lý sự kiện socket
+            socket.on('updateItem', function (data) {
+                const row = document.querySelector(`tr[data-id="${data.id}"][data-type="${data.type}"]`);
+                if (row) {
+                    let html = `
+                        <td data-label="Name">${data.data.name || 'N/A'}</td>
+                        <td data-label="Address">${data.data.address || 'N/A'}</td>
+                        <td data-label="Location">${data.data.location || 'N/A'}</td>
+                        <td data-label="Description">${data.data.description || 'N/A'}</td>
+                        <td data-label="Created At">${new Date(data.data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                        <td data-label="Image">${data.data.image ? `<img src="${data.data.image}" alt="${data.data.name} Image" class="image-preview" style="max-width: 100px; height: auto;">` : 'N/A'}</td>`;
+                    if (isAdmin) {
+                        html += `
+                            <td data-label="Actions">
+                                <button class="action-button update-button" 
+                                    data-id="${data.id}" 
+                                    data-type="${data.type}"
+                                    data-location="${encodeURIComponent(JSON.stringify(data.data.location || ''))}" 
+                                    data-address="${encodeURIComponent(JSON.stringify(data.data.address || ''))}" 
+                                    data-description="${encodeURIComponent(JSON.stringify(data.data.description || ''))}">Edit</button>
+                                <button class="action-button delete-button" data-id="${data.id}" data-type="${data.type}">Delete</button>
+                            </td>`;
+                    }
+                    const newRow = document.createElement('tr');
+                    newRow.setAttribute('data-id', data.id);
+                    newRow.setAttribute('data-type', data.type);
+                    newRow.innerHTML = html;
+                    row.parentNode.replaceChild(newRow, row);
+                    attachRowEvents();
+                    newRow.classList.add('updated');
+                    setTimeout(() => newRow.classList.remove('updated'), 1000);
+                    showNotification(`${data.type.charAt(0).toUpperCase() + data.type.slice(1)} updated successfully`);
+                    scrollToNewRow('resultsContainer', newRow);
+                }
+            });
+
+            socket.on('deleteItem', function (data) {
+                const row = document.querySelector(`tr[data-id="${data.id}"][data-type="${data.type}"]`);
+                if (row) {
+                    row.classList.add('deleted');
+                    setTimeout(() => {
+                        row.remove();
+                        if (!document.querySelector('#resultsTableBody tr')) {
+                            document.getElementById('resultsContainer').style.display = 'none';
+                        }
+                        showNotification(`${data.type.charAt(0).toUpperCase() + data.type.slice(1)} deleted successfully`);
+                    }, 300);
+                }
+            });
 
             // Gắn sự kiện cho nút Search và Enter key
             const searchButton = document.getElementById('searchButton');

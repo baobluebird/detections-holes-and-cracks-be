@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+    <!-- Logo -->
+    <div class="flex justify-center mb-6">
+      <img src="/images/logo_app.png" alt="Logo" class="h-16 w-auto" />
+    </div>
+
+    <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Create Your Account</h2>
+
+    <div id="message" class="hidden mb-4 p-4 rounded-md text-sm"></div>
+
+    <form id="registerForm" action="/sign-up" method="POST" class="space-y-4">
+      <!-- Full Name -->
+      <div>
+        <label for="name" class="block text-sm font-medium text-gray-700">Full Name</label>
+        <input type="text" id="name" name="name" required class="mt-1 w-full px-4 py-2 border rounded-md"
+          placeholder="Enter your full name" />
+      </div>
+
+      <!-- Date of Birth -->
+      <div>
+        <label for="dob" class="block text-sm font-medium text-gray-700">Date of Birth</label>
+        <input type="date" id="dob" name="dob" required class="mt-1 w-full px-4 py-2 border rounded-md" />
+      </div>
+
+      <!-- Phone -->
+      <div>
+        <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number</label>
+        <input type="tel" id="phone" name="phone" required class="mt-1 w-full px-4 py-2 border rounded-md"
+          placeholder="Enter your phone number" />
+      </div>
+
+      <!-- Email -->
+      <div>
+        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+        <input type="email" id="email" name="email" required class="mt-1 w-full px-4 py-2 border rounded-md"
+          placeholder="Enter your email" />
+      </div>
+
+      <!-- Password -->
+      <div>
+        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+        <input type="password" id="password" name="password" required class="mt-1 w-full px-4 py-2 border rounded-md"
+          placeholder="Enter your password" />
+      </div>
+
+      <!-- Confirm Password -->
+      <div>
+        <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+        <input type="password" id="confirmPassword" name="confirmPassword" required
+          class="mt-1 w-full px-4 py-2 border rounded-md" placeholder="Re-enter your password" />
+      </div>
+
+      <!-- Submit -->
+      <div>
+        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">Sign Up</button>
+      </div>
+    </form>
+
+    <!-- Google Sign-In -->
+    <div class="mt-4">
+      <div id="g_id_onload" data-client_id="<%= googleClientID %>" data-callback="handleGoogleSignIn"
+        data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_up_with"
+        data-shape="rectangular" data-logo_alignment="left">
+      </div>
+    </div>
+
+    <!-- Link to login -->
+    <div class="mt-4 text-center">
+      <p class="text-sm text-gray-600">
+        Already have an account? <a href="/home/login" class="text-blue-600 hover:underline">Log in</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const registerData = {};
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('name').value;
+      const date = document.getElementById('dob').value;
+      const phone = document.getElementById('phone').value;
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const messageDiv = document.getElementById('message');
+
+      if (password !== confirmPassword) {
+        messageDiv.classList.remove('hidden');
+        messageDiv.classList.add('bg-red-100', 'text-red-700');
+        messageDiv.textContent = 'Passwords do not match.';
+        return;
+      }
+
+      // Lưu thông tin để gửi sau khi verify
+      localStorage.setItem('register_data', JSON.stringify({ name, date, phone, email, password,confirmPassword }));
+
+
+      try {
+        // Bước 1: gửi xác minh email
+        const res = await fetch('/api/code/create-code-verify-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+
+        const data = await res.json();
+
+        if (data.status === 'OK') {
+          // Bước 2: chuyển sang giao diện nhập mã xác minh
+          window.location.href = `/home/verify-email/${data.id}`;
+        } else {
+          messageDiv.classList.remove('hidden');
+          messageDiv.classList.add('bg-red-100', 'text-red-700');
+          messageDiv.textContent = data.message || 'Unable to send verification code.';
+        }
+      } catch (error) {
+        messageDiv.classList.remove('hidden');
+        messageDiv.classList.add('bg-red-100', 'text-red-700');
+        messageDiv.textContent = 'Error sending verification email.';
+      }
+    });
+
+    // Đăng ký bằng Google
+    window.handleGoogleSignIn = async (response) => {
+      const messageDiv = document.getElementById('message');
+
+      try {
+        const res = await fetch('http://saferoad.duckdns.org:3003/api/user/signup-google-for-web', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id_token: response.credential }),
+        });
+
+        const data = await res.json();
+
+        if (data.status === 'OK') {
+          messageDiv.classList.remove('hidden', 'bg-red-100');
+          messageDiv.classList.add('bg-green-100', 'text-green-700');
+          messageDiv.textContent = data.message;
+          setTimeout(() => window.location.href = '/home/login', 1500);
+        } else {
+          messageDiv.classList.remove('hidden', 'bg-green-100');
+          messageDiv.classList.add('bg-red-100', 'text-red-700');
+          messageDiv.textContent = data.message;
+        }
+      } catch (error) {
+        console.error('Google Sign-Up Error:', error);
+        messageDiv.classList.remove('hidden', 'bg-green-100');
+        messageDiv.classList.add('bg-red-100', 'text-red-700');
+        messageDiv.textContent = 'Google Sign-Up failed.';
+      }
+    };
+  </script>
+</body>
+
+</html>

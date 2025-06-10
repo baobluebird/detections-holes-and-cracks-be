@@ -188,6 +188,22 @@ const getVerifyCode = async (req, res) => {
     }
 };
 
+const getVerifyEmail = async (req, res) => {
+    try {
+        const id = req.params.id;
+        console.log('id', id)
+        const {email} = await CodeServices.getEmail(id);
+        return res.render('verify_email.ejs', {
+            id: id,
+            email: email,
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
+
 const getResetPassword = async (req, res) => {
     try {
         return res.render('reset_password.ejs', {
@@ -205,6 +221,7 @@ module.exports = {
     createCode,
     createCodeVerifyEmail,
     verifyCode,
+    getVerifyEmail,
     verifyCodeEmail,
     createTokenEmail,
     checkTokenEmail,
@@ -212,5 +229,6 @@ module.exports = {
     resetPassword,
     getForgotPassword,
     getVerifyCode,
+    getVerifyEmail,
     getResetPassword,
 }

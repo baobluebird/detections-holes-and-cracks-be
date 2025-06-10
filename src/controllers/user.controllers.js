@@ -37,11 +37,11 @@ const createUser = async (req, res) => {
 const createUserWithGoogle = async (req, res) => {
     try {
         const { name, email, googleId } = req.body;
-
+        console.log('sign up with google', email)
         if (!name || !email || !googleId) {
             return res.status(200).json({
                 status: 'ERR',
-                message: 'Email and Google ID are required',
+                message: 'Email or Google ID is missing',
             });
         }
 
@@ -55,25 +55,35 @@ const createUserWithGoogle = async (req, res) => {
 };
 
 const createUserWithGoogleForWeb = async (req, res) => {
-    try {
-        const { name, email, googleId } = req.body;
-
-        if (!name || !email || !googleId) {
-            return res.status(200).json({
-                status: 'ERR',
-                message: 'Email and Google ID are required',
-            });
-        }
-
-        const user = req.body
-        const response = await UserService.createUserWithGoogleForWeb(user)
-        console.log('sign up', email)
-        return res.status(200).json(response)
-    } catch (error) {
-        return res.status(500).json({ message: error.message });
+  try {
+    const { id_token } = req.body;
+    if (!id_token) {
+      return res.status(400).json({
+        status: 'ERR',
+        message: 'Missing Google ID token',
+      });
     }
-};
 
+    // Verify ID token with Google
+    const ticket = await client.verifyIdToken({
+      idToken: id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const email = payload.email;
+    const name = payload.name || '';
+    const googleId = payload.sub;
+
+    // Gọi service để đăng ký người dùng mới
+    const response = await UserService.createUserWithGoogleForWeb({ email, name, googleId });
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error('Google Sign-Up Error:', error);
+    return res.status(500).json({ status: 'ERR', message: error.message || 'Internal Server Error' });
+  }
+};
 
 const loginUser = async (req, res) => {
     try {
@@ -374,6 +384,17 @@ const getLogin = async (req, res) => {
         });
     }
 };
+const getRegister = async (req, res) => {
+    try {
+        return res.render('register.ejs', {
+            googleClientID: process.env.API_WEB_GOOOGLE_KEY,
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
 
 const getLogout = async (req, res) => {
     try {
@@ -410,5 +431,6 @@ module.exports = {
     getDataSendHelp,
 
     getLogin,
+    getRegister,
     getLogout,
 }

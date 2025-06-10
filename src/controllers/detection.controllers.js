@@ -2,6 +2,10 @@ const DetectionServices = require('../services/detection.services')
 const fs = require('fs').promises;
 const axios = require('axios');
 const path = require('path');
+const FormData = require('form-data');
+const dotenv = require("dotenv");
+dotenv.config();
+
 function getLocationCoordinates(locationString) {
   const startIndex = locationString.indexOf("(");
   const endIndex = locationString.indexOf(")");
@@ -630,6 +634,16 @@ const getDamageCSV = async (req, res) => {
     }
 };
 
+const getReportDetection = async (req, res) => {
+    try {
+        const response = await DetectionServices.getReportDetection();
+        return res.status(200).json(response);
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ status: "error", message: "Internal server error" });
+    }
+}
+
 module.exports = {
     createDetection,
     createDetectionForJetson,
@@ -677,4 +691,5 @@ module.exports = {
 
     searchListDetection,
     
+    getReportDetection,
 }
