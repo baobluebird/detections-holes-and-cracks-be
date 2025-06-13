@@ -15,7 +15,6 @@
         .topnav,
         .content {
             display: none;
-            /* Ẩn nội dung mặc định */
         }
 
         .topnav {
@@ -93,6 +92,9 @@
 
         .data-status {
             padding: 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
 
         .notification {
@@ -218,8 +220,25 @@
             border-radius: 4px;
         }
 
-        @media (max-width: 600px) {
+        /* Thêm style cho dropdown sắp xếp */
+        .sort-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
+        .sort-container label {
+            font-weight: bold;
+        }
+
+        .sort-container select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
             .table-container,
             .data-status {
                 padding: 10px;
@@ -267,6 +286,11 @@
             #detailMap {
                 height: 200px;
             }
+
+            .sort-container select {
+                width: 100%;
+                max-width: 200px;
+            }
         }
     </style>
 </head>
@@ -281,16 +305,25 @@
         <a class="active" href="/home/data-damage">Damage Road Data</a>
         <a href="/home/data-send-help">Home Data Send Help</a>
         <a href="/home/search">Search</a>
+        <a href="/home/chart">Chart</a>
         <a href="/home/logout">Logout</a>
     </div>
 
     <div class="content">
-        <div class="data-status"><strong>Total Damage Roads:</strong> <span id="totalDamage">
-                <%= totalDamage %>
-            </span></div>
-        <button class="action-button export-button" id="exportButton">
-            <i class="fas fa-file-export"></i> Export Data
-        </button>
+        <div class="data-status">
+            <strong>Total Damage Roads:</strong> <span id="totalDamage"><%= totalDamage %></span>
+            <!-- Thêm dropdown để chọn kiểu sắp xếp -->
+            <div class="sort-container">
+                <label for="sortBy">Sort By:</label>
+                <select id="sortBy" name="sortBy">
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+                </select>
+            </div>
+            <button class="action-button export-button" id="exportButton">
+                <i class="fas fa-file-export"></i> Export Data
+            </button>
+        </div>
         <div class="table-container" id="DamageContainer">
             <div class="title">Damage Road Data</div>
             <table>
@@ -308,24 +341,13 @@
                 <tbody id="damageTableBody">
                     <% listDamage.forEach(function(damage) { %>
                         <tr id="damage-row-<%= damage._id %>" data-id="<%= damage._id %>">
-                            <td data-label="Name">
-                                <%= damage.name %>
-                            </td>
-                            <td data-label="Start Location">
-                                <%= damage.sourceName %>
-                            </td>
-                            <td data-label="End Location">
-                                <%= damage.destinationName %>
-                            </td>
-                            <td data-label="Location A">
-                                <%= damage.locationA %>
-                            </td>
-                            <td data-label="Location B">
-                                <%= damage.locationB %>
-                            </td>
+                            <td data-label="Name"><%= damage.name %></td>
+                            <td data-label="Start Location"><%= damage.sourceName %></td>
+                            <td data-label="End Location"><%= damage.destinationName %></td>
+                            <td data-label="Location A"><%= damage.locationA %></td>
+                            <td data-label="Location B"><%= damage.locationB %></td>
                             <td data-label="Created At">
-                                <%= new Date(damage.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
-                                    %>
+                                <%= new Date(damage.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) %>
                             </td>
                             <td data-label="Actions">
                                 <button class="action-button update-button" id="update-<%= damage._id %>"
@@ -334,11 +356,10 @@
                                     data-destination-name="<%= encodeURIComponent(JSON.stringify(damage.destinationName)) %>"
                                     data-location-a="<%= encodeURIComponent(JSON.stringify(damage.locationA)) %>"
                                     data-location-b="<%= encodeURIComponent(JSON.stringify(damage.locationB)) %>">Update</button>
-                                <button class="action-button delete-button"
-                                    id="delete-<%= damage._id %>">Delete</button>
+                                <button class="action-button delete-button" id="delete-<%= damage._id %>">Delete</button>
                             </td>
                         </tr>
-                        <% }) %>
+                    <% }) %>
                 </tbody>
             </table>
         </div>
@@ -346,10 +367,10 @@
 
     <div id="notification-damage" class="notification"></div>
 
-    <div id="updateModal-damage" class="modal">
+    <div id="update-modal-damage" class="modal">
         <div class="modal-content">
-            <h2>Update Damage</h2>
-            <form id="updateForm-damage">
+            <h2>Edit Damage</h2>
+            <form id="updateFormDamage">
                 <label for="updateName">Name</label>
                 <input type="text" id="updateName" name="name" required>
                 <label for="updateSourceName">Start Location</label>
@@ -361,12 +382,12 @@
                 <label for="updateLocationB">Location B</label>
                 <input type="text" id="updateLocationB" name="locationB" required>
                 <button type="submit" class="save-button">Save</button>
-                <button type="button" class="cancel-button" id="cancelUpdateButton">Cancel</button>
+                <button type="button" class="cancel-button" id="cancelUpdate">Cancel</button>
             </form>
         </div>
     </div>
 
-    <div id="detailModal-damage" class="modal">
+    <div id="detail-modal-damage" class="modal">
         <div class="modal-content">
             <h2>Damage Road Details</h2>
             <div id="detailContent">
@@ -378,17 +399,16 @@
                 <p><strong>Created At:</strong> <span id="detailCreatedAt"></span></p>
                 <div id="detailMap"></div>
             </div>
-            <button type="button" class="cancel-button" id="closeDetailButton">Close</button>
+            <button type="button" class="cancel-button" id="closeDetail">Close</button>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script async
-        src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&libraries=directions"></script>
+    <script async src="https://maps.googleapis.com/maps/api/js?key=<%= googleMapsApiKey %>&libraries=directions"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async function () {
             const socket = io();
-            let currentMaintainId = null;
+            let currentDamageId = null;
 
             // Hàm kiểm tra quyền admin
             async function checkAdminAccess() {
@@ -409,9 +429,7 @@
                         console.error('Error message div not found');
                         alert('Please log in to access this page.');
                     }
-                    setTimeout(() => {
-                        window.location.href = '/home/login';
-                    }, 2000);
+                    setTimeout(() => window.location.href = '/home/login', 2000);
                     return false;
                 }
 
@@ -419,10 +437,8 @@
                     console.log('Sending request to /api/user/send-token');
                     const response = await fetch('/api/user/send-token', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ token }),
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token })
                     });
 
                     console.log('Response status:', response.status);
@@ -454,9 +470,7 @@
                         }
                         localStorage.removeItem('access_token');
                         sessionStorage.removeItem('access_token');
-                        setTimeout(() => {
-                            window.location.href = '/home/login';
-                        }, 2000);
+                        setTimeout(() => window.location.href = '/home/login', 2000);
                         return false;
                     }
                 } catch (error) {
@@ -469,20 +483,18 @@
                     }
                     localStorage.removeItem('access_token');
                     sessionStorage.removeItem('access_token');
-                    setTimeout(() => {
-                        window.location.href = '/home/login';
-                    }, 2000);
+                    setTimeout(() => window.location.href = '/home/login', 2000);
                     return false;
                 }
             }
 
             // Gọi kiểm tra quyền admin
             const isAdmin = await checkAdminAccess();
-            if (!isAdmin) return; // Dừng thực thi nếu không phải admin
+            if (!isAdmin) return;
 
             // Hàm hiển thị thông báo
             function showNotification(message) {
-                const notification = document.getElementById('notification-maintain');
+                const notification = document.getElementById('notification-damage');
                 if (!notification) {
                     console.error('Notification element not found');
                     alert(message);
@@ -490,9 +502,7 @@
                 }
                 notification.textContent = message;
                 notification.classList.add('show');
-                setTimeout(() => {
-                    notification.classList.remove('show');
-                }, 3000);
+                setTimeout(() => notification.classList.remove('show'), 3000);
             }
 
             // Hàm cuộn đến dòng mới hoặc cập nhật
@@ -508,10 +518,7 @@
                 try {
                     const match = locationStr.match(/LatLng\(([\d.-]+),\s*([\d.-]+)\)/);
                     if (match) {
-                        return {
-                            lat: parseFloat(match[1]),
-                            lng: parseFloat(match[2])
-                        };
+                        return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
                     }
                     throw new Error('Invalid location format');
                 } catch (error) {
@@ -532,22 +539,11 @@
                     mapTypeId: 'terrain'
                 });
 
-                new google.maps.Marker({
-                    position: startLatLng,
-                    map: map,
-                    title: 'Location A'
-                });
-                new google.maps.Marker({
-                    position: endLatLng,
-                    map: map,
-                    title: 'Location B'
-                });
+                new google.maps.Marker({ position: startLatLng, map: map, title: 'Location A' });
+                new google.maps.Marker({ position: endLatLng, map: map, title: 'Location B' });
 
                 const directionsService = new google.maps.DirectionsService();
-                const directionsRenderer = new google.maps.DirectionsRenderer({
-                    map: map,
-                    suppressMarkers: true
-                });
+                const directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: true });
 
                 directionsService.route({
                     origin: startLatLng,
@@ -572,7 +568,7 @@
                     document.getElementById('updateDestinationName').value = destinationName || '';
                     document.getElementById('updateLocationA').value = locationA || '';
                     document.getElementById('updateLocationB').value = locationB || '';
-                    document.getElementById('updateModal-damage').style.display = 'flex';
+                    document.getElementById('update-modal-damage').style.display = 'flex';
                 } catch (error) {
                     console.error('Error in openUpdateModal:', error);
                     showNotification('Error loading update form');
@@ -581,7 +577,7 @@
 
             // Đóng modal Update
             function closeUpdateModal() {
-                document.getElementById('updateModal-damage').style.display = 'none';
+                document.getElementById('update-modal-damage').style.display = 'none';
                 currentDamageId = null;
             }
 
@@ -603,7 +599,7 @@
                         const endLatLng = parseLatLng(damage.locationB);
                         initMap(startLatLng, endLatLng);
 
-                        document.getElementById('detailModal-damage').style.display = 'flex';
+                        document.getElementById('detail-modal-damage').style.display = 'flex';
                     } else {
                         showNotification(result.message || 'Failed to fetch damage road details');
                     }
@@ -615,30 +611,25 @@
 
             // Đóng modal Detail
             function closeDetailModal() {
-                document.getElementById('detailModal-damage').style.display = 'none';
+                document.getElementById('detail-modal-damage').style.display = 'none';
                 document.getElementById('detailMap').innerHTML = '';
             }
 
-            // Xử lý nhấp ra ngoài để đóng modal Update
-            document.getElementById('updateModal-damage').addEventListener('click', function (e) {
-                if (e.target === this) {
-                    closeUpdateModal();
-                }
+            // Xử lý nhấp ra ngoài để đóng modal
+            document.getElementById('update-modal-damage').addEventListener('click', function (e) {
+                if (e.target === this) closeUpdateModal();
             });
 
-            // Xử lý nhấp ra ngoài để đóng modal Detail
-            document.getElementById('detailModal-damage').addEventListener('click', function (e) {
-                if (e.target === this) {
-                    closeDetailModal();
-                }
+            document.getElementById('detail-modal-damage').addEventListener('click', function (e) {
+                if (e.target === this) closeDetailModal();
             });
 
             // Gắn sự kiện cho nút Cancel và Close
-            document.getElementById('cancelUpdateButton').addEventListener('click', closeUpdateModal);
-            document.getElementById('closeDetailButton').addEventListener('click', closeDetailModal);
+            document.getElementById('cancelUpdate').addEventListener('click', closeUpdateModal);
+            document.getElementById('closeDetail').addEventListener('click', closeDetailModal);
 
             // Xử lý form Update
-            document.getElementById('updateForm-damage').addEventListener('submit', async function (e) {
+            document.getElementById('updateFormDamage').addEventListener('submit', async function (e) {
                 e.preventDefault();
                 const name = document.getElementById('updateName').value;
                 const sourceName = document.getElementById('updateSourceName').value;
@@ -651,20 +642,12 @@
                     return;
                 }
 
-                const formData = {
-                    name,
-                    sourceName,
-                    destinationName,
-                    locationA,
-                    locationB
-                };
+                const formData = { name, sourceName, destinationName, locationA, locationB };
 
                 try {
                     const response = await fetch(`/api/detection/update-damage/${currentDamageId}`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(formData)
                     });
                     const result = await response.json();
@@ -705,6 +688,50 @@
                 }
             }
 
+            // Hàm cập nhật bảng với dữ liệu đã sắp xếp
+            async function updateTable(sortBy) {
+                try {
+                    const response = await fetch(`/api/detection/sort?type=damage&sortBy=${sortBy}`);
+                    const result = await response.json();
+                    if (response.ok && result.status === 'OK') {
+                        const damages = result.data;
+                        const tableBody = document.getElementById('damageTableBody');
+                        tableBody.innerHTML = '';
+
+                        damages.forEach(damage => {
+                            let html = `
+                                <tr id="damage-row-${damage._id}" data-id="${damage._id}">
+                                    <td data-label="Name">${damage.name || 'N/A'}</td>
+                                    <td data-label="Start Location">${damage.sourceName || 'N/A'}</td>
+                                    <td data-label="End Location">${damage.destinationName || 'N/A'}</td>
+                                    <td data-label="Location A">${damage.locationA || 'N/A'}</td>
+                                    <td data-label="Location B">${damage.locationB || 'N/A'}</td>
+                                    <td data-label="Created At">${new Date(damage.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                                    <td data-label="Actions">
+                                        <button class="action-button update-button" id="update-${damage._id}"
+                                            data-name="${encodeURIComponent(JSON.stringify(damage.name || ''))}"
+                                            data-source-name="${encodeURIComponent(JSON.stringify(damage.sourceName || ''))}"
+                                            data-destination-name="${encodeURIComponent(JSON.stringify(damage.destinationName || ''))}"
+                                            data-location-a="${encodeURIComponent(JSON.stringify(damage.locationA || ''))}"
+                                            data-location-b="${encodeURIComponent(JSON.stringify(damage.locationB || ''))}">Update</button>
+                                        <button class="action-button delete-button" id="delete-${damage._id}">Delete</button>
+                                    </td>
+                                </tr>`;
+                            tableBody.insertAdjacentHTML('beforeend', html);
+                        });
+
+                        document.getElementById('totalDamage').textContent = damages.length;
+                        attachButtonEvents();
+                        showNotification(`Sorted damages by ${sortBy === 'newest' ? 'newest first' : 'oldest first'}`);
+                    } else {
+                        showNotification(result.message || 'Failed to fetch sorted damages');
+                    }
+                } catch (error) {
+                    console.error('Error fetching sorted damages:', error);
+                    showNotification('Error fetching sorted damages');
+                }
+            }
+
             // Gắn sự kiện cho các nút và hàng
             function attachButtonEvents() {
                 document.querySelectorAll('.delete-button').forEach(button => {
@@ -742,6 +769,12 @@
                     });
                 });
             }
+
+            // Gắn sự kiện cho dropdown sắp xếp
+            document.getElementById('sortBy').addEventListener('change', function () {
+                const sortBy = this.value;
+                updateTable(sortBy);
+            });
 
             // Gọi hàm gắn sự kiện ban đầu
             attachButtonEvents();
@@ -841,9 +874,7 @@
             document.getElementById('exportButton').addEventListener('click', async function () {
                 try {
                     const response = await fetch('/api/detection/get-damage-csv');
-                    if (!response.ok) {
-                        throw new Error('Failed to export data');
-                    }
+                    if (!response.ok) throw new Error('Failed to export data');
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');

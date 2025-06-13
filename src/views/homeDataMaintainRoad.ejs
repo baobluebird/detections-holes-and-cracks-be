@@ -92,8 +92,11 @@
             background-color: rgb(180, 178, 178);
         }
 
-        .data-summary {
+       .data-summary {
             padding: 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
 
         .image-preview {
@@ -105,7 +108,7 @@
             position: fixed;
             top: 70px;
             right: 20px;
-            background-color: #333;
+            background-color: #04AA6D;
             color: white;
             padding: 10px 20px;
             border-radius: 4px;
@@ -278,16 +281,31 @@
         <a href="/home/data-damage">Damage Road Data</a>
         <a href="/home/data-send-help">Home Data Send Help</a>
         <a href="/home/search">Search</a>
+        <a href="/home/chart">Chart</a>
         <a href="/home/logout">Logout</a>
     </div>
-
     <div class="content">
-        <div class="data-summary"><strong>Total Maintain Roads:</strong> <span id="totalMaintain">
+        <div class="data-summary">
+            <strong>Total Maintain Roads:</strong> <span id="totalMaintain">
                 <%= totalMaintain %>
-            </span></div>
-        <button class="action-button export-button" id="exportButton">
-            <i class="fas fa-file-export"></i> Export Data
-        </button>
+            </span>
+            <div class="sort-container" style="padding: 10px 20px;">
+                <label for="sortSelect"><strong>Sort By:</strong></label>
+                <select id="sortSelect" style="padding: 5px; margin-left: 10px; border-radius: 4px;">
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+                    <option value="maintain_asc">Maintain Date Ascending</option>
+                    <option value="maintain_desc">Maintain Date Descending</option>
+                    <option value="distance_asc">Distance Ascending</option>
+                    <option value="distance_desc">Distance Descending</option>
+                </select>
+            </div>
+
+            <button class="action-button export-button" id="exportButton">
+                <i class="fas fa-file-export"></i> Export Data
+            </button>
+            <!-- Thêm dropdown menu cho sắp xếp -->
+        </div>
         <div class="table-container" id="MaintainContainer">
             <div class="title">Maintain Roads Data</div>
             <table>
@@ -691,6 +709,7 @@
                         socket.emit('maintainUpdated', {
                             id: currentMaintainId,
                             ...formData,
+                            dateMaintain: result.data.dateMaintain,
                             createdAt: result.data.createdAt || new Date().toISOString()
                         });
                     } else {
@@ -790,6 +809,7 @@
                 <td data-label="Location B">${data.locationB || 'N/A'}</td>
                 <td data-label="Start Date">${new Date(data.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
                 <td data-label="End Date">${new Date(data.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                <td data-label="Date Maintain">${data.dateMaintain || 'N/A'}</td>
                 <td data-label="Created At">${new Date(data.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
                 <td data-label="Actions">
                     <button class="action-button update-button" 
@@ -883,6 +903,64 @@
                     showNotification('Error exporting data');
                 }
             });
+        });
+        async function sortMaintainData(sortBy) {
+            try {
+                const response = await fetch(`/api/detection/sort?type=road&sortBy=${sortBy}`);
+                const result = await response.json();
+                if (response.ok && result.status === 'OK') {
+                    // Cập nhật bảng với dữ liệu mới
+                    const tableBody = document.getElementById('maintainTableBody');
+                    tableBody.innerHTML = ''; // Xóa nội dung bảng hiện tại
+
+                    result.data.forEach(maintain => {
+                        const newRow = document.createElement('tr');
+                        newRow.setAttribute('id', `row-${maintain._id}`);
+                        newRow.setAttribute('data-id', maintain._id);
+                        const html = `
+                    <td data-label="Source Name">${maintain.sourceName || 'N/A'}</td>
+                    <td data-label="Destination Name">${maintain.destinationName || 'N/A'}</td>
+                    <td data-label="Location A">${maintain.locationA || 'N/A'}</td>
+                    <td data-label="Location B">${maintain.locationB || 'N/A'}</td>
+                    <td data-label="Start Date">${new Date(maintain.startDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                    <td data-label="End Date">${new Date(maintain.endDate).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                    <td data-label="Date Maintain">${maintain.dateMaintain || 'N/A'}</td>
+                    <td data-label="Created At">${new Date(maintain.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                    <td data-label="Actions">
+                        <button class="action-button update-button" 
+                            id="update-${maintain._id}" 
+                            data-source-name="${encodeURIComponent(JSON.stringify(maintain.sourceName || ''))}"
+                            data-destination-name="${encodeURIComponent(JSON.stringify(maintain.destinationName || ''))}"
+                            data-location-a="${encodeURIComponent(JSON.stringify(maintain.locationA || ''))}"
+                            data-location-b="${encodeURIComponent(JSON.stringify(maintain.locationB || ''))}"
+                            data-start-date="${maintain.startDate}"
+                            data-end-date="${maintain.endDate}">Update</button>
+                        <button class="action-button delete-button" id="delete-${maintain._id}">Delete</button>
+                    </td>`;
+                        newRow.innerHTML = html;
+                        tableBody.appendChild(newRow);
+                    });
+
+                    // Cập nhật tổng số Maintain Roads
+                    document.getElementById('totalMaintain').innerText = result.data.length;
+
+                    // Gắn lại sự kiện cho các nút
+                    attachButtonEvents();
+
+                    showNotification('Data sorted successfully');
+                } else {
+                    showNotification(result.message || 'Failed to sort data');
+                }
+            } catch (error) {
+                console.error('Error sorting data:', error);
+                showNotification('Error sorting data');
+            }
+        }
+
+        // Gắn sự kiện change cho dropdown
+        document.getElementById('sortSelect').addEventListener('change', function () {
+            const sortBy = this.value;
+            sortMaintainData(sortBy);
         });
     </script>
 </body>

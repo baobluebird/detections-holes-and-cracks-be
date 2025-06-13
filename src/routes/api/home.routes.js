@@ -13,9 +13,11 @@ router.get('/data-send-help',userController.getDataSendHelp);
 router.get('/map',detectionController.getMap);
 router.get('/map-for-public',detectionController.getMapForPublic);
 router.get('/search',detectionController.getSearch);
+router.get('/chart',detectionController.getChart);
 router.get('/login',userController.getLogin);
 router.get('/register',userController.getRegister);
 router.get('/logout',userController.getLogout);
+
 router.get('/forgot-password',codeController.getForgotPassword);
 router.get('/verify-code/:id',codeController.getVerifyCode);
 router.get('/verify-email/:id',codeController.getVerifyEmail);

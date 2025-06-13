@@ -93,6 +93,9 @@
 
         .data-summary {
             padding: 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
 
         .image-preview {
@@ -104,7 +107,7 @@
             position: fixed;
             top: 70px;
             right: 20px;
-            background-color: #333;
+            background-color: #04AA6D;
             color: white;
             padding: 10px 20px;
             border-radius: 4px;
@@ -208,6 +211,24 @@
             border-radius: 4px;
         }
 
+        /* Thêm style cho dropdown sắp xếp */
+        .sort-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sort-container label {
+            font-weight: bold;
+        }
+
+        .sort-container select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
         @media (max-width: 600px) {
 
             .table-container,
@@ -263,6 +284,11 @@
                 height: 200px;
                 /* Smaller map on mobile */
             }
+
+            .sort-container select {
+                width: 100%;
+                max-width: 200px;
+            }
         }
     </style>
 </head>
@@ -276,15 +302,26 @@
         <a href="/home/data-damage">Damage Road Data</a>
         <a href="/home/data-send-help">Home Data Send Help</a>
         <a href="/home/search">Search</a>
+        <a href="/home/chart">Chart</a>
         <a href="/home/logout">Logout</a>
     </div>
     <div class="content">
-        <div class="data-summary"><strong>Total Holes:</strong> <span id="totalHole">
+        <div class="data-summary">
+            <strong>Total Holes:</strong> <span id="totalHole">
                 <%= totalHole %>
-            </span></div>
-        <button class="action-button export-button" id="exportButton">
-            <i class="fas fa-file-export"></i> Export Data
-        </button>
+            </span>
+            <!-- Thêm dropdown để chọn kiểu sắp xếp -->
+            <div class="sort-container">
+                <label for="sortBy">Sort By:</label>
+                <select id="sortBy" name="sortBy">
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+                </select>
+            </div>
+            <button class="action-button export-button" id="exportButton">
+                <i class="fas fa-file-export"></i> Export Data
+            </button>
+        </div>
         <!-- Bảng hiển thị Holes -->
         <div class="table-container" id="HoleContainer">
             <div class="title">Holes Data</div>
@@ -679,6 +716,82 @@
                 }
             }
 
+                        // Gắn sự kiện cho các nút và hàng
+            function attachButtonEvents() {
+                document.querySelectorAll('.delete-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = button.getAttribute('data-id');
+                        deleteCrack(id);
+                    });
+                });
+
+                document.querySelectorAll('.update-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        try {
+                            const id = button.getAttribute('data-id');
+                            const location = JSON.parse(decodeURIComponent(button.getAttribute('data-location')));
+                            const address = JSON.parse(decodeURIComponent(button.getAttribute('data-address')));
+                            const description = JSON.parse(decodeURIComponent(button.getAttribute('data-description')));
+                            openUpdateModal(id, location, address, description);
+                        } catch (error) {
+                            console.error('Error parsing JSON:', error);
+                            showNotification('Error loading update form');
+                        }
+                    });
+                });
+
+                document.querySelectorAll('tr[data-id]').forEach(row => {
+                    row.addEventListener('click', (e) => {
+                        if (e.target.closest('.action-button')) return;
+                        const id = row.getAttribute('data-id');
+                        openDetailModal(id);
+                    });
+                });
+            }
+
+            // Hàm cập nhật bảng với dữ liệu đã sắp xếp
+            async function updateTable(sortBy) {
+                try {
+                    const response = await fetch(`/api/detection/sort?type=hole&sortBy=${sortBy}`);
+                    const result = await response.json();
+                    if (response.ok && result.status === 'OK') {
+                        const holes = result.data;
+                        const tableBody = document.getElementById('holeTableBody');
+                        tableBody.innerHTML = ''; // Xóa bảng hiện tại
+
+                        holes.forEach(hole => {
+                            let html = `<tr data-id="${hole._id}">`;
+                            html += `<td data-label="Name">${hole.name || 'Vết nứt'}</td>`;
+                            html += `<td data-label="Location">${hole.location || 'N/A'}</td>`;
+                            html += `<td data-label="Address">${hole.address || 'N/A'}</td>`;
+                            html += `<td data-label="Description">${hole.description || 'N/A'}</td>`;
+                            html += `<td data-label="Created At">${new Date(hole.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>`;
+                            html += `<td data-label="Image">${hole.image ? `<img src="${hole.image}" alt="Hole Image" class="image-preview">` : 'N/A'}</td>`;
+                            html += `<td data-label="Actions">`;
+                            html += `<button class="action-button update-button" data-id="${hole._id}" data-location="${encodeURIComponent(JSON.stringify(hole.location || ''))}" data-address="${encodeURIComponent(JSON.stringify(hole.address || ''))}" data-description="${encodeURIComponent(JSON.stringify(hole.description || ''))}">Update</button>`;
+                            html += `<button class="action-button delete-button" data-id="${hole._id}">Delete</button>`;
+                            html += `</td>`;
+                            html += `</tr>`;
+                            tableBody.insertAdjacentHTML('beforeend', html);
+                        });
+
+                        // Cập nhật tổng số hole
+                        document.getElementById('totalHole').textContent = holes.length;
+
+                        // Gắn lại sự kiện cho các nút và hàng
+                        attachButtonEvents();
+                        showNotification(`Sorted holes by ${sortBy === 'newest' ? 'newest first' : 'oldest first'}`);
+                    } else {
+                        showNotification(result.message || 'Failed to fetch sorted holes');
+                    }
+                } catch (error) {
+                    console.error('Error fetching sorted holes:', error);
+                    showNotification('Error fetching sorted holes');
+                }
+            }
+
             // Gắn sự kiện cho các nút và hàng
             function attachEvents() {
                 document.querySelectorAll('.delete-button').forEach(button => {
@@ -713,6 +826,10 @@
                     });
                 });
             }
+            document.getElementById('sortBy').addEventListener('change', function () {
+                const sortBy = this.value;
+                updateTable(sortBy);
+            });
 
             // Gọi hàm gắn sự kiện ban đầu
             attachEvents();

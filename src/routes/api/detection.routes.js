@@ -45,5 +45,9 @@ module.exports = (upload) => {
 
   router.get('/get-report-detection', authMiddleware, detectionController.getReportDetection);
 
+  router.get('/sort', detectionController.getSortedData);
+  
+  router.get('/statistics/monthly', detectionController.getMonthlyStatistics);
+
   return router;
 };

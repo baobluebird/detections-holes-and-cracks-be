@@ -362,6 +362,7 @@
         <a href="/home/data-damage">Damage Road Data</a>
         <a href="/home/data-send-help">Home Data Send Help</a>
         <a class="active" href="/home/search">Search</a>
+        <a href="/home/chart">Chart</a>
         <a href="/home/logout">Logout</a>
     </div>
 
@@ -808,8 +809,8 @@
                     const response = await fetch(`/api/detection/search-list-detection?type=${encodeURIComponent(type)}&term=${encodeURIComponent(searchTerm)}`);
                     const result = await response.json();
                     document.getElementById('loading').classList.remove('show');
-
-                    if (result.status === 'OK') {
+                    console.log('Search response:', response);
+                    if (result.status === 'OK' && result.data && result.data.length > 0) {
                         displaySearchResults(type, result.data);
                         showNotification(result.message);
                     } else {

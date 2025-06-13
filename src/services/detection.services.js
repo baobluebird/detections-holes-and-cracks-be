@@ -20,7 +20,25 @@ cloudinary.config({
   api_secret: process.env.API_SECRET_CLOUDDINARY,
 });
 
-
+// Hàm tính khoảng cách (placeholder - cần implement dựa trên logic của bạn)
+function calculateDistance(locationA, locationB) {
+  // Giả định locationA, locationB là tọa độ dạng "lat,lon"
+  // Sử dụng công thức Haversine để tính khoảng cách
+  try {
+    const [lat1, lon1] = locationA.split(',').map(Number);
+    const [lat2, lon2] = locationB.split(',').map(Number);
+    const R = 6371; // Bán kính Trái Đất (km)
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Khoảng cách (km)
+  } catch (error) {
+    throw new Error('Invalid location format. Expected "lat,lon".');
+  }
+}
 
 function getLocationCoordinates(locationStringA, locationStringB) {
   const startIndexA = locationStringA.indexOf("(");
@@ -389,10 +407,14 @@ const getListCracks = () => {
     try {
       const cracks = await Crack.find();
       const count = await Crack.countDocuments();
-
+      const formattedCracks = cracks.map((crack) => ({
+        ...crack._doc,
+        createdAt: moment(crack.createdAt).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss"),
+        updatedAt: moment(crack.updatedAt).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss"),
+      }));
       resolve({
         total: count,
-        data: cracks,
+        data: formattedCracks,
         status: "OK",
         message: "Get list cracks successfully",
       });
@@ -595,12 +617,17 @@ const getMaintainRoad = () => {
   return new Promise(async (resolve, reject) => {
     try {
       const count = await Road.countDocuments();
-      const data = await Road.find()
-      if (data) {
+      const roads = await Road.find()
+      const formattedMaintains = roads.map((road) => ({
+        ...road._doc,
+        createdAt: moment(road.createdAt).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss"),
+        updatedAt: moment(road.updatedAt).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss"),
+      }));
+      if (roads) {
         resolve({
           status: "OK",
           total: count,
-          data: data,
+          data: formattedMaintains,
           message: "Get data maintain road successfully",
         });
       }
@@ -632,12 +659,19 @@ const getDamageRoad = () => {
   return new Promise(async (resolve, reject) => {
     try {
       const count = await Damage.countDocuments();
-      const data = await Damage.find()
-      if (data) {
+      const damages = await Damage.find()
+
+      const formattedDamages = damages.map((damage) => ({
+        ...damage._doc,
+        createdAt: moment(damage.createdAt).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss"),
+        updatedAt: moment(damage.updatedAt).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss"),
+      }));
+
+      if (damages) {
         resolve({
           status: "OK",
           total: count,
-          data: data,
+          data: formattedDamages,
           message: "Get data damage road successfully",
         });
       }
@@ -801,12 +835,24 @@ const updateMaintain = (id, data) => {
       resolve({
         status: "OK",
         message: "Update maintain road successfully",
+        data: {
+          id: updatedMaintain._id.toString(),
+          sourceName: updatedMaintain.sourceName,
+          destinationName: updatedMaintain.destinationName,
+          locationA: updatedMaintain.locationA,
+          locationB: updatedMaintain.locationB,
+          startDate: updatedMaintain.startDate,
+          endDate: updatedMaintain.endDate,
+          dateMaintain: updatedMaintain.dateMaintain,
+          createdAt: updatedMaintain.createdAt.toISOString(),
+          updatedAt: updatedMaintain.updatedAt.toISOString()
+        }
       });
     } catch (error) {
       reject(error);
     }
   });
-}
+};
 
 const updateDamage = (id, data) => {
   const io = global.io;
@@ -1017,12 +1063,31 @@ const searchListDetection = (type, searchTerm) => {
       }
 
       const results = await model.find(searchQuery);
+      console.log("results", results);
 
-      resolve({
-        status: 'OK',
-        data: results,
-        message: `Search ${type}s successfully`,
-      });
+      if (results.length === 0) {
+        return reject({
+          status: 'ERR',
+          message: `No ${type}s found for the search "${searchTerm}"`,
+        });
+      } else {
+        const formattedResults = results.map((item) => {
+          const formattedItem = item._doc;
+          dateFields.forEach((field) => {
+            if (formattedItem[field]) {
+              formattedItem[field] = moment(formattedItem[field]).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss");
+            }
+          });
+          return formattedItem;
+        }
+        );
+        resolve({
+          status: 'OK',
+          data: formattedResults,
+          message: `Search ${type}s successfully`,
+        });
+      }
+
     } catch (error) {
       reject({
         status: 'ERR',
@@ -1287,6 +1352,151 @@ const getReportDetection = () => {
   });
 }
 
+const getSortedData = (type, sortBy) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let model;
+      switch (type) {
+        case 'crack':
+          model = Crack;
+          break;
+        case 'hole':
+          model = Hole;
+          break;
+        case 'damage':
+          model = Damage;
+          break;
+        case 'road':
+          model = Road;
+          break;
+        default:
+          return reject({
+            status: 'ERR',
+            message: 'Invalid model type. Use "crack", "hole", "damage", or "road".'
+          });
+      }
+
+      let data;
+      if (type === 'road') {
+        let sortOptions = {};
+
+        switch (sortBy) {
+          case 'newest':
+            sortOptions = { createdAt: -1 };
+            data = await Road.find().sort(sortOptions);
+            break;
+          case 'oldest':
+            sortOptions = { createdAt: 1 };
+            data = await Road.find().sort(sortOptions);
+            break;
+          case 'maintain_asc':
+            sortOptions = { dateMaintain: 1 };
+            data = await Road.find().sort(sortOptions);
+            break;
+          case 'maintain_desc':
+            sortOptions = { dateMaintain: -1 };
+            data = await Road.find().sort(sortOptions);
+            break;
+          case 'distance_asc':
+          case 'distance_desc':
+            data = await Road.find();
+            data = data.sort((a, b) => {
+              const distanceA = calculateDistance(a.locationA, a.locationB);
+              const distanceB = calculateDistance(b.locationA, b.locationB);
+              return sortBy === 'distance_asc' ? distanceA - distanceB : distanceB - distanceA;
+            });
+            break;
+          default:
+            return reject({
+              status: 'ERR',
+              message: `Invalid sort option for road. Valid options: newest, oldest, maintain_asc, maintain_desc, distance_asc, distance_desc.`
+            });
+        }
+      } else {
+        // Xử lý cho crack, hole, damage
+        const sortOrder = sortBy === 'newest' ? -1 : 1;
+        data = await model.find().sort({ createdAt: sortOrder });
+      }
+
+      resolve({
+        status: 'OK',
+        data,
+        message: `Successfully retrieved sorted ${type} data`
+      });
+    } catch (error) {
+      reject({
+        status: 'ERR',
+        message: error.message || 'An error occurred while fetching sorted data'
+      });
+    }
+  });
+};
+
+const getMonthlyStatistics = async (year) => {
+    // Tạo điều kiện lọc theo năm nếu có
+    const matchYear = year ? {
+        $match: {
+            createdAt: {
+                $gte: new Date(`${year}-01-01T00:00:00Z`),
+                $lte: new Date(`${year}-12-31T23:59:59Z`)
+            }
+        }
+    } : { $match: {} }; // Nếu không có năm, lấy tất cả
+
+    // Aggregation pipeline cho mỗi model
+    const aggregateByMonth = (model) => [
+        matchYear,
+        {
+            $group: {
+                _id: { $month: '$createdAt' },
+                count: { $sum: 1 }
+            }
+        },
+        {
+            $sort: { _id: 1 } // Sắp xếp theo tháng tăng dần
+        },
+        {
+            $project: {
+                month: '$_id',
+                count: 1,
+                _id: 0
+            }
+        }
+    ];
+
+    // Thực hiện aggregation cho từng model
+    const [crackStats, holeStats, roadStats, damageStats] = await Promise.all([
+        Crack.aggregate(aggregateByMonth(Crack)),
+        Hole.aggregate(aggregateByMonth(Hole)),
+        Road.aggregate(aggregateByMonth(Road)),
+        Damage.aggregate(aggregateByMonth(Damage))
+    ]);
+
+    // Tạo mảng kết quả với 12 tháng
+    const months = Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
+        cracks: 0,
+        holes: 0,
+        roads: 0,
+        damages: 0
+    }));
+
+    // Gán số liệu vào các tháng tương ứng
+    crackStats.forEach(stat => {
+        months[stat.month - 1].cracks = stat.count;
+    });
+    holeStats.forEach(stat => {
+        months[stat.month - 1].holes = stat.count;
+    });
+    roadStats.forEach(stat => {
+        months[stat.month - 1].roads = stat.count;
+    });
+    damageStats.forEach(stat => {
+        months[stat.month - 1].damages = stat.count;
+    });
+
+    return months;
+};
 
 module.exports = {
   createDetection,
@@ -1323,5 +1533,8 @@ module.exports = {
   deleteDamage,
 
   searchListDetection,
+  getSortedData,
   getReportDetection,
+  getMonthlyStatistics,
+  
 };

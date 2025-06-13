@@ -193,7 +193,7 @@
 
       try {
         // Gửi id_token từ Google tới endpoint /signup-google
-        const googleResponse = await fetch('http://saferoad.duckdns.org:3003/api/user/signin-google-for-web', {
+        const googleResponse = await fetch('/api/user/signin-google-for-web', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

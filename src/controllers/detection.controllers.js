@@ -233,8 +233,8 @@ const updateCrack = async (req, res) => {
 const updateMaintain = async (req, res) => {
     try {
         const { sourceName, destinationName, locationA, locationB, startDate, endDate } = req.body;
-
         const data = { sourceName, destinationName, locationA, locationB, startDate, endDate };
+
         const response = await DetectionServices.updateMaintain(req.params.id, data);
         return res.status(200).json(response);
     } catch (e) {
@@ -500,6 +500,18 @@ const getSearch = async (req, res) => {
     }
 };
 
+const getChart = async (req, res) => {
+    try {
+        return res.render('chart.ejs', {
+            googleMapsApiKey: process.env.API_GOOGLE_KEY,
+        });
+    } catch (e) {
+        return res.status(404).json({
+            message: e.message || 'Error fetching damage data',
+        });
+    }
+};
+
 const searchListDetection = async (req, res) => {
     try {
         const { type, term } = req.query;
@@ -512,8 +524,7 @@ const searchListDetection = async (req, res) => {
         const response = await DetectionServices.searchListDetection(type, term);
         return res.status(200).json(response);
     } catch (error) {
-        console.error("Error:", error);
-        res.status(500).json({ status: "error", message: "Internal server error" });
+        res.status(404).json({ status: "error", message: error.message || 'Error searching detections' });
     }
 }
 
@@ -644,6 +655,57 @@ const getReportDetection = async (req, res) => {
     }
 }
 
+const getSortedData = async (req, res) => {
+    try {
+        const { type, sortBy } = req.query;
+
+        // Kiểm tra type hợp lệ
+        const validTypes = ['crack', 'hole', 'damage', 'road'];
+        if (!validTypes.includes(type)) {
+            return res.status(400).json({ message: 'Invalid type parameter. Use "crack", "hole", "damage", or "road".' });
+        }
+
+        // Kiểm tra sortBy hợp lệ
+        const validSortOptions = {
+            crack: ['newest', 'oldest'],
+            hole: ['newest', 'oldest'],
+            damage: ['newest', 'oldest'],
+            road: ['newest', 'oldest', 'maintain_asc', 'maintain_desc', 'distance_asc', 'distance_desc']
+        };
+
+        if (!sortBy || !validSortOptions[type].includes(sortBy)) {
+            return res.status(400).json({ 
+                message: `Invalid sortBy parameter for ${type}. Valid options: ${validSortOptions[type].join(', ')}.` 
+            });
+        }
+
+        const response = await DetectionServices.getSortedData(type, sortBy);
+        
+        res.status(200).json(response);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching sorted data', error: error.message });
+    }
+};
+
+const getMonthlyStatistics = async (req, res) => {
+    try {
+        const { year } = req.query; 
+        const statistics = await DetectionServices.getMonthlyStatistics(year);
+        res.status(200).json({
+            status: 'OK',
+            data: statistics,
+            message: 'Monthly statistics retrieved successfully'
+        });
+    } catch (error) {
+        console.error('Error in getMonthlyStatistics:', error);
+        res.status(500).json({
+            status: 'ERROR',
+            message: 'Failed to retrieve monthly statistics',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     createDetection,
     createDetectionForJetson,
@@ -667,6 +729,7 @@ module.exports = {
     getMap,
     getMapForPublic,
     getSearch,
+    getChart,
 
 
     getDetailHole,
@@ -690,6 +753,7 @@ module.exports = {
     deleteDamage,
 
     searchListDetection,
-    
+    getSortedData,
     getReportDetection,
+    getMonthlyStatistics,
 }
