@@ -14,7 +14,8 @@
 
         .topnav,
         .content {
-            display: none; /* Ẩn nội dung mặc định */
+            display: none;
+            /* Ẩn nội dung mặc định */
         }
 
         .topnav {
@@ -83,7 +84,7 @@
             position: fixed;
             top: 70px;
             right: 20px;
-            background-color: #333;
+            background-color: #04AA6D;
             color: white;
             padding: 10px 20px;
             border-radius: 4px;
@@ -98,7 +99,9 @@
         }
 
         @media (max-width: 600px) {
-            .content, .filter-container {
+
+            .content,
+            .filter-container {
                 padding: 10px;
             }
 
@@ -144,7 +147,8 @@
     </div>
 
     <div id="notification-stats" class="notification"></div>
-
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async function () {
@@ -214,6 +218,9 @@
             // Kiểm tra quyền admin
             const isAdmin = await checkAdminAccess();
             if (!isAdmin) return;
+
+            // Kết nối Socket.IO
+            const socket = io(); // Server Socket.IO chạy cùng domain
 
             // Điền danh sách năm vào dropdown
             const yearSelect = document.getElementById('yearSelect');
@@ -311,7 +318,7 @@
                                 }
                             }
                         });
-                        showNotification('Chart loaded successfully');
+                        showNotification('Chart updated successfully');
                     } else {
                         showNotification(result.message || 'Failed to load statistics');
                     }
@@ -328,6 +335,59 @@
             yearSelect.addEventListener('change', function () {
                 const selectedYear = this.value;
                 drawChart(selectedYear);
+            });
+
+            // Lắng nghe sự kiện Socket.IO cho thêm dữ liệu
+            socket.on('newDataAdded', (data) => {
+                const dataYear = new Date(data.createdAt).getFullYear();
+                const selectedYear = parseInt(yearSelect.value);
+                if (dataYear === selectedYear) {
+                    drawChart(selectedYear);
+                    showNotification(`New ${data.name} added, chart updated`);
+                }
+            });
+
+            socket.on('newMaintainRoad', (data) => {
+                const dataYear = new Date(data.createdAt).getFullYear();
+                const selectedYear = parseInt(yearSelect.value);
+                if (dataYear === selectedYear) {
+                    drawChart(selectedYear);
+                    showNotification('New maintain road added, chart updated');
+                }
+            });
+
+            socket.on('newDamageRoad', (data) => {
+                const dataYear = new Date(data.createdAt).getFullYear();
+                const selectedYear = parseInt(yearSelect.value);
+                if (dataYear === selectedYear) {
+                    drawChart(selectedYear);
+                    showNotification('New damage road added, chart updated');
+                }
+            });
+
+            // Lắng nghe sự kiện Socket.IO cho xóa dữ liệu
+            socket.on('holeDeleted', (data) => {
+                const selectedYear = parseInt(yearSelect.value);
+                drawChart(selectedYear);
+                showNotification('Hole deleted, chart updated');
+            });
+
+            socket.on('crackDeleted', (data) => {
+                const selectedYear = parseInt(yearSelect.value);
+                drawChart(selectedYear);
+                showNotification('Crack deleted, chart updated');
+            });
+
+            socket.on('maintainDeleted', (data) => {
+                const selectedYear = parseInt(yearSelect.value);
+                drawChart(selectedYear);
+                showNotification('Maintain road deleted, chart updated');
+            });
+
+            socket.on('damageDeleted', (data) => {
+                const selectedYear = parseInt(yearSelect.value);
+                drawChart(selectedYear);
+                showNotification('Damage road deleted, chart updated');
             });
         });
     </script>
