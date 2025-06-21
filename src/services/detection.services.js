@@ -22,6 +22,9 @@ cloudinary.config({
 
 const parseLatLng = (locationStr) => {
   try {
+    if (Array.isArray(locationStr) && locationStr.length === 2) {
+      return locationStr; // Nếu đã là mảng [lat, lng], trả về luôn
+    }
     const match = locationStr.match(/LatLng\(latitude:([\d.-]+),\s*longitude:([\d.-]+)\)/);
     if (!match) return null;
     const [_, latitude, longitude] = match;
@@ -127,7 +130,16 @@ const createDetection = async (
         const url = `${process.env.URL_VPS_HOLE}/process-image?image_url=${savedImage.secure_url}`;
 
         const response = await axios.get(url);
-        console.log("response", response);
+        console.log("response", response.data.status, response.data.result);
+
+        if (response.data.status == 'error') {
+          //delete hole
+          await Hole.findByIdAndDelete(hole._id);
+          resolve({
+            status: "ERR",
+            message: response.data.message || "Error processing image",
+          });
+        }
         if (response.data.result == 'No detection') {
           //delete hole
           await Hole.findByIdAndDelete(hole._id);
@@ -171,6 +183,14 @@ const createDetection = async (
         const url = `${process.env.URL_VPS_HOLE}/process-image?image_url=${savedImage.secure_url}`;
 
         const response = await axios.post(url);
+        if (response.data.status == 'error') {
+          //delete hole
+          await Crack.findByIdAndDelete(crack._id);
+          resolve({
+            status: "ERR",
+            message: response.data.message || "Error processing image",
+          });
+        }
         if (response.data.result == 'No detection') {
           //delete hole
           await Crack.findByIdAndDelete(crack._id);
@@ -200,35 +220,27 @@ const createDetection = async (
 const checkCoordinates = (type, coordinates) => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Kiểm tra đầu vào coordinates
-      if (!Array.isArray(coordinates) || coordinates.length !== 2 || !coordinates[0] || !coordinates[1]) {
+      console.log("check coordinates", type, coordinates);
+
+      // Parse coordinates đầu vào
+      const parsedCoords = parseLatLng(coordinates);
+      if (!parsedCoords) {
         reject({
           status: 'ERR',
-          message: 'Coordinates must be an array of [latitude, longitude]',
+          message: 'Invalid coordinates format. Must be [latitude, longitude] or LatLng(latitude:X, longitude:Y)',
         });
         return;
       }
 
-      const [lat, lng] = coordinates;
-      if (typeof lat !== 'number' || typeof lng !== 'number') {
+      const [lat, lng] = parsedCoords;
+      if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
         reject({
           status: 'ERR',
-          message: 'Latitude and longitude must be numbers',
+          message: 'Latitude and longitude must be valid numbers',
         });
         return;
       }
 
-      // Kiểm tra type hợp lệ
-      const validTypes = ['crack', 'hole', 'all'];
-      if (!validTypes.includes(type.toLowerCase())) {
-        reject({
-          status: 'ERR',
-          message: 'Type must be "crack", "hole", or "all"',
-        });
-        return;
-      }
-
-      // Lấy dữ liệu từ database dựa trên type
       let items;
       if (type.toLowerCase() === 'crack') {
         items = await Crack.find().exec();
