@@ -53,6 +53,10 @@ const createDetection = async (req, res) => {
       });
     }
 
+    const checkCoordinates = await DetectionServices.checkCoordinates(typeDetection, location);
+
+    console.log("checkCoordinates", checkCoordinates);
+
     const response = await DetectionServices.createDetection(
       typeDetection,
       location,

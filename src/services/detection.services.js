@@ -20,10 +20,18 @@ cloudinary.config({
   api_secret: process.env.API_SECRET_CLOUDDINARY,
 });
 
-// Hàm tính khoảng cách (placeholder - cần implement dựa trên logic của bạn)
+const parseLatLng = (locationStr) => {
+  try {
+    const match = locationStr.match(/LatLng\(latitude:([\d.-]+),\s*longitude:([\d.-]+)\)/);
+    if (!match) return null;
+    const [_, latitude, longitude] = match;
+    return [parseFloat(latitude), parseFloat(longitude)];
+  } catch {
+    return null;
+  }
+};
+
 function calculateDistance(locationA, locationB) {
-  // Giả định locationA, locationB là tọa độ dạng "lat,lon"
-  // Sử dụng công thức Haversine để tính khoảng cách
   try {
     const [lat1, lon1] = locationA.split(',').map(Number);
     const [lat2, lon2] = locationB.split(',').map(Number);
@@ -185,6 +193,126 @@ const createDetection = async (
       }
     } catch (error) {
       reject(error);
+    }
+  });
+};
+
+const checkCoordinates = (type, coordinates) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Kiểm tra đầu vào coordinates
+      if (!Array.isArray(coordinates) || coordinates.length !== 2 || !coordinates[0] || !coordinates[1]) {
+        reject({
+          status: 'ERR',
+          message: 'Coordinates must be an array of [latitude, longitude]',
+        });
+        return;
+      }
+
+      const [lat, lng] = coordinates;
+      if (typeof lat !== 'number' || typeof lng !== 'number') {
+        reject({
+          status: 'ERR',
+          message: 'Latitude and longitude must be numbers',
+        });
+        return;
+      }
+
+      // Kiểm tra type hợp lệ
+      const validTypes = ['crack', 'hole', 'all'];
+      if (!validTypes.includes(type.toLowerCase())) {
+        reject({
+          status: 'ERR',
+          message: 'Type must be "crack", "hole", or "all"',
+        });
+        return;
+      }
+
+      // Lấy dữ liệu từ database dựa trên type
+      let items;
+      if (type.toLowerCase() === 'crack') {
+        items = await Crack.find().exec();
+      } else if (type.toLowerCase() === 'hole') {
+        items = await Hole.find().exec();
+      } else {
+        const cracks = await Crack.find().exec();
+        const holes = await Hole.find().exec();
+        items = [...cracks, ...holes];
+      }
+
+      if (!items || items.length === 0) {
+        resolve({
+          status: 'OK',
+          message: 'No items found in database',
+          data: [],
+        });
+        return;
+      }
+
+      // Parse location và lọc các location hợp lệ
+      const parsedLocations = items
+        .map(item => ({
+          item,
+          coords: parseLatLng(item.location),
+        }))
+        .filter(loc => loc.coords !== null);
+
+      if (parsedLocations.length === 0) {
+        resolve({
+          status: 'OK',
+          message: 'No valid locations found in database',
+          data: [],
+        });
+        return;
+      }
+
+      // Chuẩn bị tọa độ nguồn (coordinates) và các tọa độ đích
+      const origin = `${lat},${lng}`;
+      const destinations = parsedLocations.map(loc => `${loc.coords[0]},${loc.coords[1]}`);
+
+      // Gọi Google Maps Distance Matrix API
+      const apiKey = process.env.API_GOOGLE_KEY;
+      const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destinations.join('|')}&key=${apiKey}`;
+
+      const response = await axios.get(url);
+
+      if (response.data.status !== 'OK') {
+        reject({
+          status: 'ERR',
+          message: 'Error from Google Maps API: ' + response.data.error_message || 'Unknown error',
+        });
+        return;
+      }
+
+      // Lọc các địa điểm trong bán kính 20m
+      const results = response.data.rows[0].elements;
+      const nearbyItems = parsedLocations
+        .filter((loc, index) => {
+          const result = results[index];
+          return result.status === 'OK' && result.distance && result.distance.value <= 20;
+        })
+        .map(loc => ({
+          _id: loc.item._id,
+          name: loc.item.name,
+          location: loc.item.location,
+          address: loc.item.address,
+          image: loc.item.image,
+          description: loc.item.description,
+          type: loc.item instanceof Crack ? 'crack' : 'hole',
+          createdAt: loc.item.createdAt,
+          updatedAt: loc.item.updatedAt,
+        }));
+
+      resolve({
+        status: 'OK',
+        message: nearbyItems.length > 0 ? 'Found items within 20m radius' : 'No items found within 20m radius',
+        data: nearbyItems,
+      });
+    } catch (error) {
+      reject({
+        status: 'ERR',
+        message: error.message || 'An unexpected error occurred',
+      });
     }
   });
 };
@@ -1433,69 +1561,69 @@ const getSortedData = (type, sortBy) => {
 };
 
 const getMonthlyStatistics = async (year) => {
-    // Tạo điều kiện lọc theo năm nếu có
-    const matchYear = year ? {
-        $match: {
-            createdAt: {
-                $gte: new Date(`${year}-01-01T00:00:00Z`),
-                $lte: new Date(`${year}-12-31T23:59:59Z`)
-            }
-        }
-    } : { $match: {} }; // Nếu không có năm, lấy tất cả
+  // Tạo điều kiện lọc theo năm nếu có
+  const matchYear = year ? {
+    $match: {
+      createdAt: {
+        $gte: new Date(`${year}-01-01T00:00:00Z`),
+        $lte: new Date(`${year}-12-31T23:59:59Z`)
+      }
+    }
+  } : { $match: {} }; // Nếu không có năm, lấy tất cả
 
-    // Aggregation pipeline cho mỗi model
-    const aggregateByMonth = (model) => [
-        matchYear,
-        {
-            $group: {
-                _id: { $month: '$createdAt' },
-                count: { $sum: 1 }
-            }
-        },
-        {
-            $sort: { _id: 1 } // Sắp xếp theo tháng tăng dần
-        },
-        {
-            $project: {
-                month: '$_id',
-                count: 1,
-                _id: 0
-            }
-        }
-    ];
+  // Aggregation pipeline cho mỗi model
+  const aggregateByMonth = (model) => [
+    matchYear,
+    {
+      $group: {
+        _id: { $month: '$createdAt' },
+        count: { $sum: 1 }
+      }
+    },
+    {
+      $sort: { _id: 1 } // Sắp xếp theo tháng tăng dần
+    },
+    {
+      $project: {
+        month: '$_id',
+        count: 1,
+        _id: 0
+      }
+    }
+  ];
 
-    // Thực hiện aggregation cho từng model
-    const [crackStats, holeStats, roadStats, damageStats] = await Promise.all([
-        Crack.aggregate(aggregateByMonth(Crack)),
-        Hole.aggregate(aggregateByMonth(Hole)),
-        Road.aggregate(aggregateByMonth(Road)),
-        Damage.aggregate(aggregateByMonth(Damage))
-    ]);
+  // Thực hiện aggregation cho từng model
+  const [crackStats, holeStats, roadStats, damageStats] = await Promise.all([
+    Crack.aggregate(aggregateByMonth(Crack)),
+    Hole.aggregate(aggregateByMonth(Hole)),
+    Road.aggregate(aggregateByMonth(Road)),
+    Damage.aggregate(aggregateByMonth(Damage))
+  ]);
 
-    // Tạo mảng kết quả với 12 tháng
-    const months = Array.from({ length: 12 }, (_, i) => ({
-        month: i + 1,
-        cracks: 0,
-        holes: 0,
-        roads: 0,
-        damages: 0
-    }));
+  // Tạo mảng kết quả với 12 tháng
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    month: i + 1,
+    cracks: 0,
+    holes: 0,
+    roads: 0,
+    damages: 0
+  }));
 
-    // Gán số liệu vào các tháng tương ứng
-    crackStats.forEach(stat => {
-        months[stat.month - 1].cracks = stat.count;
-    });
-    holeStats.forEach(stat => {
-        months[stat.month - 1].holes = stat.count;
-    });
-    roadStats.forEach(stat => {
-        months[stat.month - 1].roads = stat.count;
-    });
-    damageStats.forEach(stat => {
-        months[stat.month - 1].damages = stat.count;
-    });
+  // Gán số liệu vào các tháng tương ứng
+  crackStats.forEach(stat => {
+    months[stat.month - 1].cracks = stat.count;
+  });
+  holeStats.forEach(stat => {
+    months[stat.month - 1].holes = stat.count;
+  });
+  roadStats.forEach(stat => {
+    months[stat.month - 1].roads = stat.count;
+  });
+  damageStats.forEach(stat => {
+    months[stat.month - 1].damages = stat.count;
+  });
 
-    return months;
+  return months;
 };
 
 module.exports = {
@@ -1536,5 +1664,7 @@ module.exports = {
   getSortedData,
   getReportDetection,
   getMonthlyStatistics,
-  
+
+  checkCoordinates,
+
 };

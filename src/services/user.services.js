@@ -187,7 +187,7 @@ const loginUser = async (data) => {
         if (checkUser.googleId !== googleId) {
           return resolve({
             status: 'ERR',
-            message: 'Google ID mismatch',
+            message: 'This email account does not exist',
           });
         }
 
