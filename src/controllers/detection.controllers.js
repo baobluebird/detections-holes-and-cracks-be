@@ -56,7 +56,12 @@ const createDetection = async (req, res) => {
     const checkCoordinates = await DetectionServices.checkCoordinates(typeDetection, location);
 
     console.log("checkCoordinates", checkCoordinates);
-
+    if(checkCoordinates.data.length > 0) {
+      return res.status(200).json({
+        status: "ERR",
+        message: "Coordinates already exist",
+      });
+    }
     const response = await DetectionServices.createDetection(
       typeDetection,
       location,

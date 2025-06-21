@@ -127,18 +127,23 @@ const createDetection = async (
 
         fs.unlinkSync(imagePath);
 
-        const url = `${process.env.URL_VPS_HOLE}/process-image?image_url=${savedImage.secure_url}`;
+        const url = `${process.env.URL_VPS}/process-image?image_url=${savedImage.secure_url}`;
 
-        const response = await axios.get(url);
-        console.log("response", response.data.status, response.data.result);
+        let response = await axios.get(url);
+        //console.log("response", response.data.status, response.data.result);
 
-        if (response.data.status == 'error') {
-          //delete hole
+        try {
+          response = await axios.get(url); // Use GET for hole, consistent with original code
+        } catch (apiError) {
+          // Delete the created item if AI server fails
+
           await Hole.findByIdAndDelete(hole._id);
-          resolve({
-            status: "ERR",
-            message: response.data.message || "Error processing image",
+
+          reject({
+            status: 'ERR',
+            message: `AI server error: ${apiError.message || 'Request to AI server failed'}`,
           });
+          return;
         }
         if (response.data.result == 'No detection') {
           //delete hole
@@ -180,7 +185,7 @@ const createDetection = async (
         });
 
         fs.unlinkSync(imagePath);
-        const url = `${process.env.URL_VPS_HOLE}/process-image?image_url=${savedImage.secure_url}`;
+        const url = `${process.env.URL_VPS}/process-image?image_url=${savedImage.secure_url}`;
 
         const response = await axios.post(url);
         if (response.data.status == 'error') {
@@ -241,10 +246,27 @@ const checkCoordinates = (type, coordinates) => {
         return;
       }
 
+      // Map Vietnamese types to English
+      const typeMap = {
+        'ổ gà': 'hole',
+        'vết nứt': 'crack',
+        'all': 'all',
+      };
+      const validType = typeMap[type.toLowerCase()] || type.toLowerCase();
+      const validTypes = ['crack', 'hole', 'all'];
+      if (!validTypes.includes(validType)) {
+        reject({
+          status: 'ERR',
+          message: 'Type must be "crack", "hole", "all", "ổ gà", or "vết nứt"',
+        });
+        return;
+      }
+
+      // Lấy dữ liệu từ database dựa trên type
       let items;
-      if (type.toLowerCase() === 'crack') {
+      if (validType === 'crack') {
         items = await Crack.find().exec();
-      } else if (type.toLowerCase() === 'hole') {
+      } else if (validType === 'hole') {
         items = await Hole.find().exec();
       } else {
         const cracks = await Crack.find().exec();
@@ -278,30 +300,14 @@ const checkCoordinates = (type, coordinates) => {
         return;
       }
 
-      // Chuẩn bị tọa độ nguồn (coordinates) và các tọa độ đích
-      const origin = `${lat},${lng}`;
-      const destinations = parsedLocations.map(loc => `${loc.coords[0]},${loc.coords[1]}`);
-
-      // Gọi Google Maps Distance Matrix API
-      const apiKey = process.env.API_GOOGLE_KEY;
-      const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destinations.join('|')}&key=${apiKey}`;
-
-      const response = await axios.get(url);
-
-      if (response.data.status !== 'OK') {
-        reject({
-          status: 'ERR',
-          message: 'Error from Google Maps API: ' + response.data.error_message || 'Unknown error',
-        });
-        return;
-      }
-
-      // Lọc các địa điểm trong bán kính 20m
-      const results = response.data.rows[0].elements;
+      // Tính khoảng cách và lọc các địa điểm trong bán kính 20m
+      const radius = 20; // Bán kính 20m
+      const origin = { latitude: lat, longitude: lng };
       const nearbyItems = parsedLocations
-        .filter((loc, index) => {
-          const result = results[index];
-          return result.status === 'OK' && result.distance && result.distance.value <= 20;
+        .filter(loc => {
+          const newCoords = { latitude: loc.coords[0], longitude: loc.coords[1] };
+          const distance = geolib.getDistance(origin, newCoords);
+          return distance <= radius;
         })
         .map(loc => ({
           _id: loc.item._id,
