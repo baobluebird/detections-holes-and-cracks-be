@@ -126,25 +126,11 @@ const createDetection = async (
         });
 
         fs.unlinkSync(imagePath);
+        const url = `${process.env.URL_VPS_DETECT}/process-image/pothole?image_url=${savedImage.secure_url}`;
 
-        const url = `${process.env.URL_VPS}/process-image?image_url=${savedImage.secure_url}`;
+        let response = await axios.post(url);
+        console.log("response", response.data);
 
-        let response = await axios.get(url);
-        //console.log("response", response.data.status, response.data.result);
-
-        try {
-          response = await axios.get(url); // Use GET for hole, consistent with original code
-        } catch (apiError) {
-          // Delete the created item if AI server fails
-
-          await Hole.findByIdAndDelete(hole._id);
-
-          reject({
-            status: 'ERR',
-            message: `AI server error: ${apiError.message || 'Request to AI server failed'}`,
-          });
-          return;
-        }
         if (response.data.result == 'No detection') {
           //delete hole
           await Hole.findByIdAndDelete(hole._id);
@@ -153,13 +139,13 @@ const createDetection = async (
             message: "No detection",
           });
         }
-        hole.image = response.data.image_url;
-        hole.description = response.data.result;
+        hole.image = response.data.image;
+        hole.description = response.data.description;
         await hole.save();
         console.log(hole)
         io.emit("newDataAdded", hole);
         resolve({
-          image: response.data.image_url,
+          image: response.data.image,
           data: hole,
           status: "OK",
           message: "Create hole successfully",
@@ -185,17 +171,11 @@ const createDetection = async (
         });
 
         fs.unlinkSync(imagePath);
-        const url = `${process.env.URL_VPS}/process-image?image_url=${savedImage.secure_url}`;
+        const url = `${process.env.URL_VPS_DETECT}/process-image/crack?image_url=${savedImage.secure_url}`;
 
-        const response = await axios.post(url);
-        if (response.data.status == 'error') {
-          //delete hole
-          await Crack.findByIdAndDelete(crack._id);
-          resolve({
-            status: "ERR",
-            message: response.data.message || "Error processing image",
-          });
-        }
+        let response = await axios.post(url);
+        console.log("response", response.data);
+
         if (response.data.result == 'No detection') {
           //delete hole
           await Crack.findByIdAndDelete(crack._id);
@@ -204,13 +184,13 @@ const createDetection = async (
             message: "No detection",
           });
         }
-        crack.image = response.data.image_url;
-        crack.description = response.data.result;
+        crack.image = response.data.image;
+        crack.description = response.data.description;
 
         await crack.save();
         io.emit("newDataAdded", crack);
         resolve({
-          image: response.data.image_url,
+          image: response.data.image,
           data: crack,
           status: "OK",
           message: "Create crack successfully",
